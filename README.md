@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://github.com/Arad-d/ember/actions/workflows/flutter.yml"><img src="https://github.com/Arad-d/ember/actions/workflows/flutter.yml/badge.svg" alt="Build, tests, and secret scan"></a>
   <img src="https://img.shields.io/badge/Flutter-3.38.3-54C5F8?logo=flutter&logoColor=white" alt="Flutter 3.38.3">
-  <img src="https://img.shields.io/badge/Web-mobile%20%26%20desktop-B5D9BB" alt="Responsive web app">
+  <img src="https://img.shields.io/badge/Web-mobile%20%26%20desktop-D6A0B1" alt="Responsive web app">
 </p>
 
 <p align="center">
