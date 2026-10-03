@@ -1,0 +1,24 @@
+name: ember
+description: A quiet place for your money. Personal expense tracking in Iranian toman.
+publish_to: none
+version: 1.0.0+1
+environment:
+  sdk: ^3.10.1
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.3
+  http: ^1.6.0
+  intl: ^0.20.2
+  uuid: ^4.5.1
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: EmberSans
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf

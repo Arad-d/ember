@@ -1,0 +1,35 @@
+{
+  "name": "Ember \u2014 Personal finance",
+  "short_name": "Ember",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#171719",
+  "theme_color": "#171719",
+  "description": "Your daily expenses, income, and accounts in Iranian toman.",
+  "orientation": "any",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/Icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/Icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
