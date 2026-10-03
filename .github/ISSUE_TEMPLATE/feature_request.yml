@@ -1,0 +1,11 @@
+name: Feature request
+description: Suggest a useful improvement.
+title: "[Idea]: "
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What would this help you do?
+      description: Explain the need without sharing personal financial information.
+    validations:
+      required: true

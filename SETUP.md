@@ -75,3 +75,9 @@ EMBER_SCREENSHOT_DIR=/tmp/ember-screenshots flutter test test/what_if_widget_tes
 ```
 
 The test suite uses fictional fixtures and mocked cloud requests. It does not need credentials for any live project.
+
+## GitHub Pages demo
+
+The demo is hosted at https://arad-d.github.io/ember/. The workflow scans secrets, runs analysis and tests, then builds with `--base-href /ember/` and deploys the `build/web` artifact. No database build defines or deployment credentials are supplied. Pull requests are checked but cannot deploy.
+
+Publishing source is **GitHub Actions** in repository Settings → Pages. The `github-pages` environment is restricted to `main`. Updates reach the demo after the main-branch checks pass.

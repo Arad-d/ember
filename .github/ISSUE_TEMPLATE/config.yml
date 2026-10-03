@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/Arad-d/ember/security/advisories/new
+    about: Do not publish vulnerabilities, credentials, or personal financial data in an issue.

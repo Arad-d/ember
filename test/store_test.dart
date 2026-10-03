@@ -10,7 +10,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
   test(
-    'Fresh portfolio install opens demo without cloud configuration',
+    'Fresh install opens demo without cloud configuration',
     () async {
       final requests = <http.Request>[];
       final store = LedgerStore(

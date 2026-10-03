@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#171719",
   "theme_color": "#171719",
-  "description": "Your daily expenses, income, and accounts in Iranian toman.",
+  "description": "Track money, plan upcoming bills, and explore cash-flow decisions.",
   "orientation": "any",
   "prefer_related_applications": false,
   "icons": [

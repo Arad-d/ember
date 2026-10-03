@@ -1,6 +1,25 @@
 # Security
 
-This repository is a standalone portfolio snapshot. It includes fictional demo data and optional backend setup code. It has no default Supabase project, hosted domain, production credentials, or original deployment configuration.
+Ember starts with fictional demo data and optional backend setup code. No shared Supabase project or production credentials are configured. The GitHub Pages demo runs from the checked `main` branch.
+
+## Supported version
+
+Security fixes are applied to the latest `main` branch. Older commits and privately deployed copies are not maintained separately.
+
+## Repository safeguards
+
+- GitHub secret scanning and push protection detect supported credential patterns.
+- A pinned Gitleaks action scans Git history on pushes and pull requests. Findings are not posted as public comments or uploaded as report artifacts.
+- Dependencies and action updates are proposed through Dependabot and checked before merging.
+- Workflows use read-only permissions for scanning, tests, and builds. Only the Pages deployment job receives Pages and identity-token write permissions; it runs for `main` after checks pass.
+- Secrets, local databases, exports, signing files, and deployment metadata are excluded from version control.
+- `CODEOWNERS` identifies the maintainer. Private vulnerability reporting provides a confidential channel.
+
+These controls reduce risk; they do not prove the absence of vulnerabilities. Public source can still be copied. The copyright notice records ownership and usage terms; it is not a technical copying barrier.
+
+## Demo privacy
+
+The demo uses browser storage on your device. It has no configured cloud account and performs no ledger sync until you connect your own backend. GitHub hosts the static demo; browser storage is not encrypted secret storage. Use fictional records in the public demo. Clearing browser site data removes local demo edits.
 
 ## Using your own backend
 
@@ -14,7 +33,7 @@ This repository is a standalone portfolio snapshot. It includes fictional demo d
 
 ## Reporting an issue
 
-Use the repository's **Security → Report a vulnerability** option when enabled. If private reporting is unavailable, open an issue requesting a private contact channel without publishing exploit details, credentials, personal records, or tokens.
+Use **[Security → Report a vulnerability](https://github.com/Arad-d/ember/security/advisories/new)**. Include affected files or behavior, reproduction steps using fictional data, impact, and the commit or version. Never include active credentials or other people's records. There is no guaranteed response time; please allow the maintainer to investigate before disclosure.
 
 ## Third-party assets
 
