@@ -13,6 +13,7 @@ Security fixes are applied to the latest `main` branch. Older commits and privat
 - Dependencies and action updates are proposed through Dependabot and checked before merging.
 - Workflows use read-only permissions for scanning, tests, and builds. Only the Pages deployment job receives Pages and identity-token write permissions; it runs for `main` after checks pass.
 - Secrets, local databases, exports, signing files, and deployment metadata are excluded from version control.
+- The active main-branch rules require a pull request, passing GitHub Actions checks, an up-to-date branch, and resolved review conversations. Force pushes and branch deletion are blocked, with no bypass actors.
 - `CODEOWNERS` identifies the maintainer. Private vulnerability reporting provides a confidential channel.
 
 These controls reduce risk; they do not prove the absence of vulnerabilities. Public source can still be copied. The copyright notice records ownership and usage terms; it is not a technical copying barrier.
