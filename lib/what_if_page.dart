@@ -1,13 +1,9 @@
+import 'preferences.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'models.dart';
 import 'amount_input.dart';
 import 'what_if.dart';
-
-const _muted = Color(0xFFA9A5A5);
-const _rose = Color(0xFFDAA5B5);
-const _green = Color(0xFFACC7B5);
 
 class WhatIfPage extends StatefulWidget {
   const WhatIfPage({super.key, required this.snapshot, this.syncStale = false});
@@ -17,7 +13,7 @@ class WhatIfPage extends StatefulWidget {
   State<WhatIfPage> createState() => _WhatIfPageState();
 }
 
-class _WhatIfPageState extends State<WhatIfPage> {
+class _WhatIfPageState extends State<WhatIfPage> with PaletteState<WhatIfPage> {
   final changes = <ScenarioChange>[];
   final scroll = ScrollController();
   final controlsAnchor = GlobalKey();
@@ -25,7 +21,7 @@ class _WhatIfPageState extends State<WhatIfPage> {
   WhatIfSnapshot get data => widget.snapshot;
   String money(int amount) =>
       '${currencyMoney(amount, data.currency)} ${data.currency}';
-  String date(DateTime value) => DateFormat.MMMd().format(value);
+  String date(DateTime value) => displayDate(context, value);
   @override
   void dispose() {
     scroll.dispose();
@@ -52,19 +48,19 @@ class _WhatIfPageState extends State<WhatIfPage> {
       if (mounted && scroll.hasClients) {
         scroll.animateTo(
           0,
-          duration: const Duration(milliseconds: 250),
+          duration: Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );
       }
     });
   }
 
-  Widget panel(Widget child, {Color? color}) => Container(
+  Widget scenarioPanel(Widget child, {Color? color}) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(20),
+    padding: EdgeInsets.all(20),
     decoration: BoxDecoration(
-      color: color ?? const Color(0xFF202022),
-      border: Border.all(color: const Color(0xFF343234)),
+      color: color ?? palette.panel,
+      border: Border.all(color: line),
       borderRadius: BorderRadius.circular(18),
     ),
     child: child,
@@ -77,42 +73,35 @@ class _WhatIfPageState extends State<WhatIfPage> {
     ScenarioKind kind,
     bool enabled,
   ) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
+    padding: EdgeInsets.only(bottom: 10),
     child: OutlinedButton(
       onPressed: enabled ? () => edit(kind) : null,
       style: OutlinedButton.styleFrom(
         alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
       ),
       child: Row(
         children: [
           Icon(icon),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   detail,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: _muted,
-                    height: 1.4,
-                  ),
+                  style: TextStyle(fontSize: 14, color: muted, height: 1.4),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right, size: 20),
+          SizedBox(width: 8),
+          Icon(Icons.chevron_right, size: 20),
         ],
       ),
     ),
@@ -124,9 +113,9 @@ class _WhatIfPageState extends State<WhatIfPage> {
     children: [
       Text(
         changes.isEmpty ? 'What would you like to try?' : 'Try another change',
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
       ),
-      const SizedBox(height: 14),
+      SizedBox(height: 14),
       choice(
         'Add a purchase',
         'Try an amount and a date.',
@@ -153,52 +142,49 @@ class _WhatIfPageState extends State<WhatIfPage> {
         data.editableBills.isNotEmpty,
       ),
       if (data.includedAccounts.isEmpty)
-        const Text(
+        Text(
           'Choose accounts in Plan → Forecast settings to start.',
-          style: TextStyle(fontSize: 14, color: _rose),
+          style: TextStyle(fontSize: 14, color: rose),
         ),
       if (changes.isNotEmpty) ...[
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text('Your changes', style: TextStyle(fontSize: 20)),
             ),
             TextButton(
               onPressed: () => setState(changes.clear),
-              child: const Text('Clear all'),
+              child: Text('Clear all'),
             ),
           ],
         ),
         ...changes.map(
           (c) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: panel(
+            padding: EdgeInsets.only(bottom: 10),
+            child: scenarioPanel(
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     c.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Text(
                     '${c.kind == ScenarioKind.income
                         ? "Income moved to"
                         : c.kind == ScenarioKind.bill
                         ? "Bill on"
                         : "Purchase on"} ${date(c.date)} · ${money(c.amount)}',
-                    style: const TextStyle(fontSize: 14, height: 1.5),
+                    style: TextStyle(fontSize: 14, height: 1.5),
                   ),
                   if (c.date.isAfter(proposed.forecast.end))
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 6),
                       child: Text(
                         'Outside this window. It is excluded from this comparison.',
-                        style: TextStyle(fontSize: 14, color: _rose),
+                        style: TextStyle(fontSize: 14, color: rose),
                       ),
                     ),
                   Wrap(
@@ -206,11 +192,11 @@ class _WhatIfPageState extends State<WhatIfPage> {
                     children: [
                       TextButton(
                         onPressed: () => edit(c.kind, c),
-                        child: const Text('Edit'),
+                        child: Text('Edit'),
                       ),
                       TextButton(
                         onPressed: () => setState(() => changes.remove(c)),
-                        child: const Text('Remove'),
+                        child: Text('Remove'),
                       ),
                     ],
                   ),
@@ -230,12 +216,12 @@ class _WhatIfPageState extends State<WhatIfPage> {
     String? currentDetail,
     String? proposedDetail,
   }) => Padding(
-    padding: const EdgeInsets.only(top: 18),
+    padding: EdgeInsets.only(top: 18),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, color: _muted)),
-        const SizedBox(height: 8),
+        Text(label, style: TextStyle(fontSize: 14, color: muted)),
+        SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -243,31 +229,28 @@ class _WhatIfPageState extends State<WhatIfPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(current, style: const TextStyle(fontSize: 18)),
+                  Text(current, style: TextStyle(fontSize: 18)),
                   if (currentDetail != null)
                     Text(
                       currentDetail,
-                      style: const TextStyle(fontSize: 14, color: _muted),
+                      style: TextStyle(fontSize: 14, color: muted),
                     ),
                 ],
               ),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Icon(Icons.arrow_forward, size: 18, color: _muted),
+              child: Icon(Icons.arrow_forward, size: 18, color: muted),
             ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    proposed,
-                    style: const TextStyle(fontSize: 18, color: _rose),
-                  ),
+                  Text(proposed, style: TextStyle(fontSize: 18, color: rose)),
                   if (proposedDetail != null)
                     Text(
                       proposedDetail,
-                      style: const TextStyle(fontSize: 14, color: _muted),
+                      style: TextStyle(fontSize: 14, color: muted),
                     ),
                 ],
               ),
@@ -305,13 +288,13 @@ class _WhatIfPageState extends State<WhatIfPage> {
       children: [
         if (changes.any((c) => c.date.isAfter(f.end)))
           Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: EdgeInsets.only(bottom: 12),
             child: Text(
               'Some changes fall after ${date(f.end)} and are excluded. Extend to 60 days or adjust their dates to see the impact.',
-              style: const TextStyle(fontSize: 14, color: _rose, height: 1.5),
+              style: TextStyle(fontSize: 14, color: rose, height: 1.5),
             ),
           ),
-        panel(
+        scenarioPanel(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -320,9 +303,9 @@ class _WhatIfPageState extends State<WhatIfPage> {
                 children: [
                   Icon(
                     below ? Icons.info_outline : Icons.check_circle_outline,
-                    color: below ? _rose : _green,
+                    color: below ? rose : green,
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       shortfall
@@ -330,7 +313,7 @@ class _WhatIfPageState extends State<WhatIfPage> {
                           : below
                           ? 'Below your safety buffer'
                           : 'Stays above your buffer',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 23,
                         fontWeight: FontWeight.w500,
                       ),
@@ -338,25 +321,25 @@ class _WhatIfPageState extends State<WhatIfPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
               Text(
                 explanation(base, next),
-                style: const TextStyle(fontSize: 16, height: 1.6),
+                style: TextStyle(fontSize: 16, height: 1.6),
               ),
-              const SizedBox(height: 22),
-              const Row(
+              SizedBox(height: 22),
+              Row(
                 children: [
                   Expanded(
                     child: Text(
                       'Current plan',
-                      style: TextStyle(fontSize: 14, color: _muted),
+                      style: TextStyle(fontSize: 14, color: muted),
                     ),
                   ),
                   SizedBox(width: 42),
                   Expanded(
                     child: Text(
                       'With changes',
-                      style: TextStyle(fontSize: 14, color: _rose),
+                      style: TextStyle(fontSize: 14, color: rose),
                     ),
                   ),
                 ],
@@ -390,74 +373,76 @@ class _WhatIfPageState extends State<WhatIfPage> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         if (f.lateIncome > 0)
           Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: EdgeInsets.only(bottom: 12),
             child: Text(
               '${f.lateIncome} late income item(s) are excluded from this scenario until a future date is chosen.',
-              style: const TextStyle(fontSize: 14, color: _rose, height: 1.5),
+              style: TextStyle(fontSize: 14, color: rose, height: 1.5),
             ),
           ),
-        const Text(
+        Text(
           'Based on recorded plans only. Unrecorded everyday spending is excluded. Bills count before income on the same day. A day counts as below the buffer if its balance drops below it at any point.',
-          style: TextStyle(fontSize: 14, color: _muted, height: 1.5),
+          style: TextStyle(fontSize: 14, color: muted, height: 1.5),
         ),
-        const SizedBox(height: 12),
-        panel(
+        SizedBox(height: 12),
+        scenarioPanel(
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            childrenPadding: const EdgeInsets.only(top: 16),
-            title: const Text('Chart & daily details'),
+            childrenPadding: EdgeInsets.only(top: 16),
+            title: Text('Chart & daily details'),
             children: [
               Wrap(
                 spacing: 16,
                 runSpacing: 8,
                 children: [
-                  _legend('Current', _muted),
-                  _legend('With changes', _rose),
-                  _legend('Buffer', _green),
+                  _legend('Current', muted),
+                  _legend('With changes', rose),
+                  _legend('Buffer', green),
                 ],
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16),
+              Text(
                 'Daily lowest balance',
-                style: TextStyle(fontSize: 14, color: _muted),
+                style: TextStyle(fontSize: 14, color: muted),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Semantics(
                 label: 'Daily lowest balances. Exact values are listed below.',
                 child: SizedBox(
                   height: 150,
                   width: double.infinity,
-                  child: CustomPaint(painter: _ComparisonPainter(base, next)),
+                  child: CustomPaint(
+                    painter: _ComparisonPainter(base, next, palette),
+                  ),
                 ),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [Text(date(f.today)), Text(date(f.end))],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               ...List.generate(next.days.length, (i) {
                 final a = base.days[i], b = next.days[i];
                 if (i != 0 &&
                     a.events.isEmpty &&
                     b.events.isEmpty &&
                     i != next.days.length - 1) {
-                  return const SizedBox.shrink();
+                  return SizedBox.shrink();
                 }
                 final labels = {
                   ...a.events.map((e) => e.title),
                   ...b.events.map((e) => e.title),
                 };
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
+                  padding: EdgeInsets.only(bottom: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         date(b.date),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
@@ -465,14 +450,14 @@ class _WhatIfPageState extends State<WhatIfPage> {
                       if (labels.isNotEmpty)
                         Text(
                           labels.join(' · '),
-                          style: const TextStyle(fontSize: 14, color: _muted),
+                          style: TextStyle(fontSize: 14, color: muted),
                         ),
                       Text(
                         'Current low: ${money(a.lowest)}\nWith changes: ${money(b.lowest)}',
                         style: TextStyle(
                           fontSize: 14,
                           height: 1.5,
-                          color: b.lowest < f.reserve ? _rose : null,
+                          color: b.lowest < f.reserve ? rose : null,
                         ),
                       ),
                     ],
@@ -490,8 +475,8 @@ class _WhatIfPageState extends State<WhatIfPage> {
     mainAxisSize: MainAxisSize.min,
     children: [
       Container(width: 16, height: 3, color: color),
-      const SizedBox(width: 6),
-      Text(label, style: const TextStyle(fontSize: 14)),
+      SizedBox(width: 6),
+      Text(label, style: TextStyle(fontSize: 14)),
     ],
   );
 
@@ -504,30 +489,30 @@ class _WhatIfPageState extends State<WhatIfPage> {
           changes.isNotEmpty && MediaQuery.sizeOf(context).width < 890
           ? SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+                padding: EdgeInsets.fromLTRB(20, 10, 20, 10),
                 child: FilledButton.icon(
                   onPressed: () {
                     final target = controlsAnchor.currentContext;
                     if (target != null) {
                       Scrollable.ensureVisible(
                         target,
-                        duration: const Duration(milliseconds: 250),
+                        duration: Duration(milliseconds: 250),
                         curve: Curves.easeOut,
                       );
                     }
                   },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add or edit changes'),
+                  icon: Icon(Icons.add),
+                  label: Text('Add or edit changes'),
                 ),
               ),
             )
           : null,
       appBar: AppBar(
-        title: const Text('What if?'),
+        title: Text('What if?'),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Chip(label: const Text('Simulation')),
+            padding: EdgeInsets.only(right: 16),
+            child: Chip(label: Text('Simulation')),
           ),
         ],
       ),
@@ -535,63 +520,63 @@ class _WhatIfPageState extends State<WhatIfPage> {
         top: false,
         child: SingleChildScrollView(
           controller: scroll,
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(20),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1160),
+              constraints: BoxConstraints(maxWidth: 1160),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Try a change. See the impact.',
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.w500),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
+                  SizedBox(height: 8),
+                  Text(
                     'Your real records stay unchanged. This simulation clears when you leave.',
-                    style: TextStyle(fontSize: 16, color: _muted, height: 1.5),
+                    style: TextStyle(fontSize: 16, color: muted, height: 1.5),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Wrap(
                     spacing: 10,
                     runSpacing: 10,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       ChoiceChip(
-                        label: const Text('30 days'),
+                        label: Text('30 days'),
                         selected: days == 30,
                         onSelected: (_) => setState(() => days = 30),
                       ),
                       ChoiceChip(
-                        label: const Text('60 days'),
+                        label: Text('60 days'),
                         selected: days == 60,
                         onSelected: (_) => setState(() => days = 60),
                       ),
                       Text(
                         '${date(data.today)} – ${date(next.forecast.end)} · ${data.currency}',
-                        style: const TextStyle(fontSize: 14, color: _muted),
+                        style: TextStyle(fontSize: 14, color: muted),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   Text(
                     'Buffer ${money(data.settings.reserve)} · ${data.includedAccounts.length} accounts from your Plan settings',
-                    style: const TextStyle(fontSize: 14, color: _muted),
+                    style: TextStyle(fontSize: 14, color: muted),
                   ),
                   if (widget.syncStale)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 10),
                       child: Text(
                         'Using your last loaded records because sync is unavailable.',
-                        style: TextStyle(fontSize: 14, color: _rose),
+                        style: TextStyle(fontSize: 14, color: rose),
                       ),
                     ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
                   LayoutBuilder(
                     builder: (context, c) {
                       if (changes.isEmpty) {
                         return ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 560),
+                          constraints: BoxConstraints(maxWidth: 560),
                           child: controls(next),
                         );
                       }
@@ -600,7 +585,7 @@ class _WhatIfPageState extends State<WhatIfPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(flex: 4, child: controls(next)),
-                            const SizedBox(width: 24),
+                            SizedBox(width: 24),
                             Expanded(flex: 6, child: results(base, next)),
                           ],
                         );
@@ -608,7 +593,7 @@ class _WhatIfPageState extends State<WhatIfPage> {
                       return Column(
                         children: [
                           results(base, next),
-                          const SizedBox(height: 28),
+                          SizedBox(height: 28),
                           controls(next),
                         ],
                       );
@@ -641,7 +626,8 @@ class _ChangeEditor extends StatefulWidget {
   State<_ChangeEditor> createState() => _ChangeEditorState();
 }
 
-class _ChangeEditorState extends State<_ChangeEditor> {
+class _ChangeEditorState extends State<_ChangeEditor>
+    with PaletteState<_ChangeEditor> {
   final title = TextEditingController(), amount = TextEditingController();
   late String account, id;
   late DateTime selectedDate;
@@ -738,7 +724,7 @@ class _ChangeEditorState extends State<_ChangeEditor> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    insetPadding: const EdgeInsets.all(16),
+    insetPadding: EdgeInsets.all(16),
     title: Text(
       purchase
           ? 'Try a purchase'
@@ -770,49 +756,47 @@ class _ChangeEditorState extends State<_ChangeEditor> {
                     .toList(),
                 onChanged: (v) => setState(() => loadItem(v!)),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(
-                'Currently ${DateFormat.yMMMd().format(original.dueDate)} · ${currencyMoney(original.amount, data.currency)} ${data.currency}',
-                style: const TextStyle(fontSize: 14, color: _muted),
+                'Currently ${displayDate(context, original.dueDate, year: true)} · ${currencyMoney(original.amount, data.currency)} ${data.currency}',
+                style: TextStyle(fontSize: 14, color: muted),
               ),
               if (income && original.dueDate.isBefore(data.today))
-                const Text(
+                Text(
                   'This income is late and excluded from the current plan. Choosing a future date includes it in the simulation.',
-                  style: TextStyle(fontSize: 14, color: _rose),
+                  style: TextStyle(fontSize: 14, color: rose),
                 ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
             ],
             if (!income) ...[
               TextField(
-                key: const Key('scenario-amount'),
+                key: Key('scenario-amount'),
                 controller: amount,
                 inputFormatters: [TomanAmountFormatter(() => data.currency)],
                 autofocus: purchase,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'Amount (${data.currency})',
                   hintText: '0',
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
             ],
             if (purchase) ...[
               TextField(
-                key: const Key('scenario-title'),
+                key: Key('scenario-title'),
                 controller: title,
                 maxLength: 120,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Name (optional)',
                   hintText: 'Laptop, trip, or something else',
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: account,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Pay from'),
+                decoration: InputDecoration(labelText: 'Pay from'),
                 items: data.includedAccounts
                     .map(
                       (a) => DropdownMenuItem(
@@ -823,7 +807,7 @@ class _ChangeEditorState extends State<_ChangeEditor> {
                     .toList(),
                 onChanged: (v) => setState(() => account = v!),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
             ],
             SizedBox(
               width: double.infinity,
@@ -839,7 +823,7 @@ class _ChangeEditorState extends State<_ChangeEditor> {
                           ),
                         )
                       : data.today;
-                  final d = await showDatePicker(
+                  final d = await pickAppDate(
                     context: context,
                     initialDate: later(selectedDate, minimum),
                     firstDate: minimum,
@@ -847,14 +831,14 @@ class _ChangeEditorState extends State<_ChangeEditor> {
                   );
                   if (d != null && mounted) setState(() => selectedDate = d);
                 },
-                icon: const Icon(Icons.calendar_today_outlined),
+                icon: Icon(Icons.calendar_today_outlined),
                 label: Text(
-                  '${income ? "Arrives" : "On"} ${DateFormat.yMMMd().format(selectedDate)}',
+                  '${income ? "Arrives" : "On"} ${displayDate(context, selectedDate, year: true)}',
                 ),
               ),
             ),
             if (income) ...[
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: [7, 14]
@@ -878,7 +862,7 @@ class _ChangeEditorState extends State<_ChangeEditor> {
             ],
             if (error != null)
               Padding(
-                padding: const EdgeInsets.only(top: 12),
+                padding: EdgeInsets.only(top: 12),
                 child: Text(
                   error!,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -891,15 +875,16 @@ class _ChangeEditorState extends State<_ChangeEditor> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: Text('Cancel'),
       ),
-      FilledButton(onPressed: submit, child: const Text('See impact')),
+      FilledButton(onPressed: submit, child: Text('See impact')),
     ],
   );
 }
 
 class _ComparisonPainter extends CustomPainter {
-  _ComparisonPainter(this.base, this.next);
+  _ComparisonPainter(this.base, this.next, this.palette);
+  final EmberPalette palette;
   final ScenarioProjection base, next;
   @override
   void paint(Canvas canvas, Size size) {
@@ -919,7 +904,7 @@ class _ComparisonPainter extends CustomPainter {
         Offset(x, buffer),
         Offset(math.min(x + 5, size.width), buffer),
         Paint()
-          ..color = _green.withValues(alpha: .7)
+          ..color = palette.green.withValues(alpha: .7)
           ..strokeWidth = 1,
       );
     }
@@ -943,8 +928,8 @@ class _ComparisonPainter extends CustomPainter {
       );
     }
 
-    line(base, _muted);
-    line(next, _rose);
+    line(base, palette.muted);
+    line(next, palette.rose);
   }
 
   @override

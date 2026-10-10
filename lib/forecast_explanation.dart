@@ -1,5 +1,5 @@
+import 'preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'forecast.dart';
 import 'models.dart';
 
@@ -27,9 +27,10 @@ class ForecastExplanation extends StatelessWidget {
   final List<ExpenseReminder> bills, income;
   final bool stale;
   String money(int n) => '${currencyMoney(n, currency)} $currency';
-  String date(DateTime d) => DateFormat.MMMd().format(d);
+
   @override
   Widget build(BuildContext context) {
+    String date(DateTime d) => displayDate(context, d);
     final f = forecast;
     final selected = day.isBefore(f.today)
         ? f.today
@@ -91,7 +92,7 @@ class ForecastExplanation extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Why this balance?\n${DateFormat.yMMMd().format(selected)}',
+                    'Why this balance?\n${displayDate(context, selected, year: true)}',
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w500,

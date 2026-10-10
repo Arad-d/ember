@@ -81,3 +81,7 @@ The test suite uses fictional fixtures and mocked cloud requests. It does not ne
 The demo is hosted at https://arad-d.github.io/ember/. The workflow scans secrets, runs analysis and tests, then builds with `--base-href /ember/` and deploys the `build/web` artifact. No database build defines or deployment credentials are supplied. Pull requests are checked but cannot deploy.
 
 Publishing source is **GitHub Actions** in repository Settings → Pages. The `github-pages` environment is restricted to `main`. Updates reach the demo after the main-branch checks pass.
+
+## Appearance and calendar
+
+In Settings, choose Dark or Light (pistachio and vanilla), and Gregorian or Solar Hijri (Shamsi). Shamsi dates use English month names and digits. Monthly summaries and chart days follow the selected calendar. Preferences are saved on the current device. Stored dates and exported calendar events remain Gregorian for compatibility. Use the currency chooser in the top header to switch account currencies.

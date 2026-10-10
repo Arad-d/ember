@@ -44,6 +44,7 @@ Ember brings everyday tracking and future planning into one place. See where you
 | **Plan around payday** | Combine balances, expected income, upcoming bills, and a safety buffer to see projected low-balance days. Open a daily breakdown to understand the result. |
 | **Try “What if?”** | Compare a purchase, delayed income, or a changed bill with your current plan. Simulations leave your actual records untouched. |
 | **Use familiar amounts** | IRT (Iranian toman), USD, EUR, and GBP. English digit entry, exact integer calculations, and automatic thousands grouping for toman. |
+| **Make it yours** | Choose the wine-and-coal dark theme or pistachio-and-vanilla light theme in Settings. Select Gregorian or English Shamsi dates, and switch currencies from the top header. Preferences stay on your device. |
 | **Choose how to store data** | Local demo storage by default; optional authenticated Supabase sync using ownership policies and atomic bill/income recording. |
 
 ## Get started
@@ -86,7 +87,7 @@ Tests cover currency calculations, forecasts and explanations, calendar escaping
 
 ## Current capabilities
 
-Ember does not connect to banks or process payments. Recording a bill as paid creates an expense entry. Recurring transactions, email alerts, and push notifications are not currently included. Imported calendar events are copies and do not update automatically. Dates use the Gregorian calendar.
+Ember does not connect to banks or process payments. Recording a bill as paid creates an expense entry. Recurring transactions, email alerts, and push notifications are not currently included. Imported calendar events are copies and do not update automatically. Dates and monthly summaries can use Gregorian or Solar Hijri (Shamsi), with English month names and digits.
 
 Web is the validated target. iOS and macOS scaffolding is included; native builds and signing are not validated. See the [security policy](SECURITY.md) before configuring a backend.
 

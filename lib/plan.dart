@@ -1,5 +1,5 @@
+import 'preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'models.dart';
 import 'amount_input.dart';
 import 'store.dart';
@@ -34,7 +34,7 @@ CashForecast forecastFor(LedgerStore s, String currency) => CashForecast(
   bills: s.reminders,
   income: s.expectedIncome,
   currency: currency,
-  settings: s.planSettings[currency] ?? const PlanSettings(),
+  settings: s.planSettings[currency] ?? PlanSettings(),
   now: DateTime.now(),
 );
 
@@ -58,15 +58,12 @@ class ForecastSummary extends StatelessWidget {
       return Card(
         margin: EdgeInsets.zero,
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 22,
-            vertical: 12,
-          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 22, vertical: 12),
           onTap: onOpen,
           title: Text(
             f.payday == null
                 ? 'Plan the next 30 days'
-                : 'Until payday · ${DateFormat.MMMd().format(f.end)}',
+                : 'Until payday · ${displayDate(context, f.end)}',
           ),
           subtitle: Text(
             '${f.accountIds.isEmpty ? "Choose forecast accounts" : "${money(f.available)} estimated available"}\n${store.syncError != null
@@ -74,31 +71,31 @@ class ForecastSummary extends StatelessWidget {
                 : f.lowest < f.reserve
                 ? "Projected balance below your buffer"
                 : "After planned bills and your buffer"}',
-            style: const TextStyle(fontSize: 14, height: 1.6),
+            style: TextStyle(fontSize: 14, height: 1.6),
           ),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: Icon(Icons.chevron_right),
         ),
       );
     }
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(22),
+        padding: EdgeInsets.all(22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               f.payday == null
                   ? 'Next 30 days · add your payday'
-                  : 'Until payday · ${DateFormat.MMMd().format(f.end)}',
-              style: const TextStyle(fontSize: 16),
+                  : 'Until payday · ${displayDate(context, f.end)}',
+              style: TextStyle(fontSize: 16),
             ),
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               'Estimated available after bills',
               style: TextStyle(fontSize: 14),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
               f.accountIds.isEmpty ? 'Choose accounts' : money(f.available),
               style: TextStyle(
@@ -106,22 +103,22 @@ class ForecastSummary extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             TextButton.icon(
               onPressed: onExplain,
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 alignment: Alignment.centerLeft,
               ),
-              icon: const Icon(Icons.info_outline, size: 18),
+              icon: Icon(Icons.info_outline, size: 18),
               label: Text(
-                'Lowest balance: ${money(f.lowest)} · ${DateFormat.MMMMd().format(f.lowestDate)}\nTap to see why',
-                style: const TextStyle(fontSize: 14, height: 1.5),
+                'Lowest balance: ${money(f.lowest)} · ${displayDate(context, f.lowestDate)}\nTap to see why',
+                style: TextStyle(fontSize: 14, height: 1.5),
               ),
             ),
             if (f.lowest < f.reserve)
               Padding(
-                padding: const EdgeInsets.only(top: 10),
+                padding: EdgeInsets.only(top: 10),
                 child: Text(
                   'Below your safety buffer by ${money(f.reserve - f.lowest)}',
                   style: TextStyle(
@@ -132,25 +129,25 @@ class ForecastSummary extends StatelessWidget {
               ),
             if (f.lateIncome > 0)
               Padding(
-                padding: const EdgeInsets.only(top: 10),
+                padding: EdgeInsets.only(top: 10),
                 child: Text(
                   '${f.lateIncome} late income item(s) excluded. Update the date or record receipt.',
-                  style: const TextStyle(fontSize: 14),
+                  style: TextStyle(fontSize: 14),
                 ),
               ),
             if (onOpen == null) ...[
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Text(
                 'Buffer: ${money(f.reserve)} · ${f.accountIds.length} accounts',
-                style: const TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14),
               ),
             ],
-            const SizedBox(height: 10),
-            const Text(
+            SizedBox(height: 10),
+            Text(
               'Estimate only. Unrecorded everyday spending is not included.',
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFFA9A5A5),
+                color: EmberPalette.of(context).muted,
                 height: 1.5,
               ),
             ),
@@ -160,7 +157,7 @@ class ForecastSummary extends StatelessWidget {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             if (onOpen != null)
-              TextButton(onPressed: onOpen, child: const Text('Open Plan →')),
+              TextButton(onPressed: onOpen, child: Text('Open Plan →')),
           ],
         ),
       ),
@@ -247,7 +244,7 @@ class _PlanViewState extends State<PlanView> {
           actions: [
             TextButton(
               onPressed: saving ? null : () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
             ),
             FilledButton(
               onPressed: saving
@@ -283,12 +280,12 @@ class _PlanViewState extends State<PlanView> {
         .toList();
     if (accounts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add an account in this currency first.')),
+        SnackBar(content: Text('Add an account in this currency first.')),
       );
       return;
     }
     var account = item?.accountId ?? accounts.first.id;
-    var date = item?.dueDate ?? DateTime.now().add(const Duration(days: 7));
+    var date = item?.dueDate ?? DateTime.now().add(Duration(days: 7));
     var category = item?.category ?? 'Salary';
     final title = TextEditingController(text: item?.title ?? '');
     final amount = TextEditingController(
@@ -298,49 +295,49 @@ class _PlanViewState extends State<PlanView> {
     await dialog(
       item == null ? 'Add expected income' : 'Edit expected income',
       (set) => [
-        const Text(
+        Text(
           'This is a plan. Record it as received only when the money arrives.',
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         TextField(
           controller: title,
           maxLength: 120,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Income name',
             hintText: 'Next salary',
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         TextField(
           controller: amount,
           inputFormatters: [TomanAmountFormatter(() => widget.currency)],
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(labelText: 'Amount (${widget.currency})'),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: account,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Into account'),
+          decoration: InputDecoration(labelText: 'Into account'),
           items: accounts
               .map((a) => DropdownMenuItem(value: a.id, child: Text(a.name)))
               .toList(),
           onChanged: (v) => set(() => account = v!),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: category,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Category'),
+          decoration: InputDecoration(labelText: 'Category'),
           items: incomeCategories
               .map((c) => DropdownMenuItem(value: c, child: Text(c)))
               .toList(),
           onChanged: (v) => set(() => category = v!),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         OutlinedButton(
           onPressed: () async {
-            final d = await showDatePicker(
+            final d = await pickAppDate(
               context: context,
               initialDate: date,
               firstDate: DateTime(2000),
@@ -348,7 +345,7 @@ class _PlanViewState extends State<PlanView> {
             );
             if (d != null) set(() => date = d);
           },
-          child: Text('Expected ${DateFormat.yMMMd().format(date)}'),
+          child: Text('Expected ${displayDate(context, date, year: true)}'),
         ),
       ],
       () async {
@@ -379,10 +376,10 @@ class _PlanViewState extends State<PlanView> {
     await dialog(
       'Forecast settings',
       (set) => [
-        const Text(
+        Text(
           'Choose money available for bills. Savings accounts are excluded by default.',
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         ...s.accounts
             .where((a) => a.currency == widget.currency)
             .map(
@@ -399,11 +396,11 @@ class _PlanViewState extends State<PlanView> {
                 }),
               ),
             ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         TextField(
           controller: reserve,
           inputFormatters: [TomanAmountFormatter(() => widget.currency)],
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             labelText: 'Safety buffer (${widget.currency})',
           ),
@@ -439,7 +436,7 @@ class _PlanViewState extends State<PlanView> {
         if (action == 'receive')
           TextButton(
             onPressed: () async {
-              final d = await showDatePicker(
+              final d = await pickAppDate(
                 context: context,
                 initialDate: date,
                 firstDate: DateTime(2000),
@@ -447,7 +444,7 @@ class _PlanViewState extends State<PlanView> {
               );
               if (d != null) set(() => date = d);
             },
-            child: Text(DateFormat.yMMMd().format(date)),
+            child: Text(displayDate(context, date, year: true)),
           ),
       ],
       () => action == 'receive'
@@ -479,20 +476,20 @@ class _PlanViewState extends State<PlanView> {
           currency: widget.currency,
           onExplain: () => explain(f.lowestDate),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Wrap(
           spacing: 10,
           runSpacing: 10,
           children: [
             FilledButton.icon(
               onPressed: () => incomeForm(),
-              icon: const Icon(Icons.south_west),
-              label: const Text('Add income'),
+              icon: Icon(Icons.south_west),
+              label: Text('Add income'),
             ),
             OutlinedButton.icon(
               onPressed: widget.addBill,
-              icon: const Icon(Icons.add),
-              label: const Text('Add bill'),
+              icon: Icon(Icons.add),
+              label: Text('Add bill'),
             ),
             OutlinedButton.icon(
               onPressed: () => Navigator.of(context).push(
@@ -505,32 +502,31 @@ class _PlanViewState extends State<PlanView> {
                       income: s.expectedIncome,
                       currency: widget.currency,
                       settings:
-                          s.planSettings[widget.currency] ??
-                          const PlanSettings(),
+                          s.planSettings[widget.currency] ?? PlanSettings(),
                       now: DateTime.now(),
                     ),
                     syncStale: s.syncError != null,
                   ),
                 ),
               ),
-              icon: const Icon(Icons.alt_route),
-              label: const Text('What if?'),
+              icon: Icon(Icons.alt_route),
+              label: Text('What if?'),
             ),
             TextButton.icon(
               onPressed: settings,
-              icon: const Icon(Icons.tune),
-              label: const Text('Forecast settings'),
+              icon: Icon(Icons.tune),
+              label: Text('Forecast settings'),
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: const Text('View forecast'),
-          subtitle: Text('Today – ${DateFormat.MMMd().format(f.end)}'),
+          title: Text('View forecast'),
+          subtitle: Text('Today – ${displayDate(context, f.end)}'),
           children: [
             if (f.events.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
                   'Add bills and expected income to see your timeline.',
@@ -539,7 +535,7 @@ class _PlanViewState extends State<PlanView> {
             if (f.events.isNotEmpty) ...[
               Text(
                 'Projected balance · ${money(f.lowest)} lowest',
-                style: const TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14),
               ),
               SizedBox(
                 height: 150,
@@ -554,33 +550,33 @@ class _PlanViewState extends State<PlanView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(DateFormat.MMMd().format(f.today)),
-                  Text(DateFormat.MMMd().format(f.end)),
+                  Text(displayDate(context, f.today)),
+                  Text(displayDate(context, f.end)),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
             ],
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Text(
           f.payday == null ? 'Next 30 days' : 'Until payday timeline',
-          style: const TextStyle(fontSize: 20),
+          style: TextStyle(fontSize: 20),
         ),
-        const SizedBox(height: 8),
-        const Text(
+        SizedBox(height: 8),
+        Text(
           'Overdue bills are reserved today. Bills come before income on the same day.',
-          style: TextStyle(fontSize: 14, color: Color(0xFFA9A5A5)),
+          style: TextStyle(fontSize: 14, color: EmberPalette.of(context).muted),
         ),
         ...f.events.map(
           (e) => ListTile(
             onTap: () => explain(e.date),
-            trailing: const Icon(Icons.chevron_right, size: 20),
+            trailing: Icon(Icons.chevron_right, size: 20),
             contentPadding: EdgeInsets.zero,
             leading: Icon(e.amount < 0 ? Icons.north_east : Icons.south_west),
             title: Text(e.title),
             subtitle: Text(
-              '${DateFormat.MMMd().format(e.date)} · ${e.kind == "entry"
+              '${displayDate(context, e.date)} · ${e.kind == "entry"
                   ? "Recorded future transaction"
                   : e.kind == "bill"
                   ? "Bill"
@@ -595,11 +591,11 @@ class _PlanViewState extends State<PlanView> {
             isThreeLine: true,
           ),
         ),
-        const SizedBox(height: 24),
-        const Text('Expected income', style: TextStyle(fontSize: 20)),
-        const SizedBox(height: 8),
+        SizedBox(height: 24),
+        Text('Expected income', style: TextStyle(fontSize: 20)),
+        SizedBox(height: 8),
         if (pending.isEmpty)
-          const Text(
+          Text(
             'Add your next payday to plan around it.',
             style: TextStyle(fontSize: 14),
           ),
@@ -608,13 +604,13 @@ class _PlanViewState extends State<PlanView> {
             contentPadding: EdgeInsets.zero,
             title: Text(i.title),
             subtitle: Text(
-              '${money(i.amount)} · ${DateFormat.MMMd().format(i.dueDate)}${i.daysUntil(DateTime.now()) < 0 ? " · Late, excluded" : ""}${f.accountIds.contains(i.accountId) ? "" : " · Account excluded"}',
-              style: const TextStyle(fontSize: 14),
+              '${money(i.amount)} · ${displayDate(context, i.dueDate)}${i.daysUntil(DateTime.now()) < 0 ? " · Late, excluded" : ""}${f.accountIds.contains(i.accountId) ? "" : " · Account excluded"}',
+              style: TextStyle(fontSize: 14),
             ),
             trailing: PopupMenuButton<String>(
               tooltip: 'Income actions',
               onSelected: (a) => incomeAction(i, a),
-              itemBuilder: (_) => const [
+              itemBuilder: (_) => [
                 PopupMenuItem(value: 'receive', child: Text('Record received')),
                 PopupMenuItem(value: 'edit', child: Text('Edit')),
                 PopupMenuItem(value: 'delete', child: Text('Delete')),
@@ -622,9 +618,9 @@ class _PlanViewState extends State<PlanView> {
             ),
           ),
         ),
-        const SizedBox(height: 24),
-        const Text('Bills & reminders', style: TextStyle(fontSize: 20)),
-        const SizedBox(height: 16),
+        SizedBox(height: 24),
+        Text('Bills & reminders', style: TextStyle(fontSize: 20)),
+        SizedBox(height: 16),
         widget.bills,
       ],
     );

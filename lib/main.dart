@@ -8,6 +8,7 @@ import 'store.dart';
 import 'plan.dart';
 import 'calendar_export.dart';
 import 'calendar_download.dart';
+import 'preferences.dart';
 
 const coal = Color(0xFF171719),
     panel = Color(0xFF202022),
@@ -24,72 +25,37 @@ Future<void> main() async {
   runApp(EmberApp(store: store));
 }
 
-class EmberApp extends StatelessWidget {
+class EmberApp extends StatefulWidget {
   const EmberApp({super.key, required this.store, this.initialPage = 0});
   final LedgerStore store;
   final int initialPage;
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Ember · Personal finance',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      brightness: Brightness.dark,
-      useMaterial3: true,
-      scaffoldBackgroundColor: coal,
-      fontFamily: "EmberSans",
-      colorScheme: const ColorScheme.dark(
-        primary: rose,
-        onPrimary: coal,
-        surface: panel,
-        onSurface: cream,
-        secondary: green,
-        error: Color(0xFFFFB4AB),
-      ),
-      dividerColor: line,
-      textTheme: ThemeData.dark().textTheme.apply(
-        bodyColor: cream,
-        displayColor: cream,
-        fontFamily: "EmberSans",
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: wine,
-          foregroundColor: cream,
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: cream,
-          side: const BorderSide(color: line),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: coal,
-        contentPadding: const EdgeInsets.all(17),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: line),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: line),
-        ),
-      ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: cream,
-        contentTextStyle: TextStyle(color: coal),
+  State<EmberApp> createState() => _EmberAppState();
+}
+
+class _EmberAppState extends State<EmberApp> {
+  late final preferences = AppPreferences(widget.store.prefs);
+  @override
+  void dispose() {
+    preferences.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => PreferencesScope(
+    preferences: preferences,
+    child: AnimatedBuilder(
+      animation: preferences,
+      builder: (context, _) => MaterialApp(
+        title: 'Ember · Personal finance',
+        debugShowCheckedModeBanner: false,
+        theme: EmberPalette(true).theme,
+        darkTheme: EmberPalette(false).theme,
+        // The light theme uses vanilla surfaces and pistachio accents.
+        themeMode: preferences.light ? ThemeMode.light : ThemeMode.dark,
+        home: Home(store: widget.store, initialPage: widget.initialPage),
       ),
     ),
-    home: Home(store: store, initialPage: initialPage),
   );
 }
 
@@ -101,7 +67,8 @@ class Home extends StatefulWidget {
   State<Home> createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> with WidgetsBindingObserver {
+class _HomeState extends State<Home>
+    with WidgetsBindingObserver, PaletteState<Home> {
   int page = 0;
   bool showPaidReminders = false;
   String selectedCurrency = 'IRT';
@@ -113,7 +80,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     (code) => s.accounts.where((a) => a.currency == code).length >= 2,
   );
   String displayMoney(int value) => currencyMoney(value, selectedCurrency);
-  DateTime month = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime month = DateTime.now();
+  DateTime get monthStart => calendarMonthStart(month, calendarOf(context));
+  DateTime get monthEnd =>
+      shiftCalendarMonth(monthStart, 1, calendarOf(context));
   String query = '', filter = 'All', accountFilter = 'All';
   bool recoveryDialogOpened = false;
   LedgerStore get s => widget.store;
@@ -121,8 +91,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       s.entries
           .where(
             (e) =>
-                e.date.year == month.year &&
-                e.date.month == month.month &&
+                !e.date.isBefore(monthStart) &&
+                e.date.isBefore(monthEnd) &&
                 accountCurrency(e.accountId) == selectedCurrency,
           )
           .toList()
@@ -195,47 +165,31 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       ),
                       child: Center(
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1250),
+                          constraints: BoxConstraints(maxWidth: 1250),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (!s.connected) demoNotice(),
                               if (s.syncError != null)
                                 Padding(
-                                  padding: const EdgeInsets.only(bottom: 18),
+                                  padding: EdgeInsets.only(bottom: 18),
                                   child: Wrap(
                                     crossAxisAlignment:
                                         WrapCrossAlignment.center,
                                     children: [
                                       Text(
                                         s.syncError!,
-                                        style: const TextStyle(color: rose),
+                                        style: TextStyle(color: palette.rose),
                                       ),
                                       TextButton(
                                         onPressed: s.reload,
-                                        child: const Text('Retry'),
+                                        child: Text('Retry'),
                                       ),
                                     ],
                                   ),
                                 ),
                               heading(wide),
-                              const SizedBox(height: 16),
-                              DropdownButton<String>(
-                                value: selectedCurrency,
-                                items: currencies.entries
-                                    .map(
-                                      (c) => DropdownMenuItem(
-                                        value: c.key,
-                                        child: Text(c.value),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (value) => setState(() {
-                                  selectedCurrency = value!;
-                                  accountFilter = 'All';
-                                }),
-                              ),
-                              const SizedBox(height: 28),
+                              SizedBox(height: 28),
                               if (page == 0)
                                 overview()
                               else if (page == 1)
@@ -270,13 +224,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       bottomNavigationBar: wide
           ? null
           : NavigationBar(
-              backgroundColor: panel,
-              indicatorColor: wine.withValues(alpha: .4),
+              backgroundColor: palette.panel,
+              indicatorColor: palette.wine.withValues(alpha: .4),
               selectedIndex: page,
               onDestinationSelected: (i) => setState(() => page = i),
               labelBehavior:
                   NavigationDestinationLabelBehavior.onlyShowSelected,
-              destinations: const [
+              destinations: [
                 NavigationDestination(
                   icon: Icon(Icons.space_dashboard_outlined),
                   label: 'Overview',
@@ -312,17 +266,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: wine,
+          color: palette.wine,
           borderRadius: BorderRadius.circular(11),
         ),
-        child: const Icon(
+        child: Icon(
           Icons.local_fire_department_outlined,
-          color: cream,
+          color: palette.cream,
           size: 25,
         ),
       ),
-      const SizedBox(width: 11),
-      const Text(
+      SizedBox(width: 11),
+      Text(
         'ember',
         style: TextStyle(
           fontSize: 28,
@@ -334,17 +288,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   );
   Widget sidebar() => Container(
     width: 222,
-    decoration: const BoxDecoration(
-      border: Border(right: BorderSide(color: line)),
+    decoration: BoxDecoration(
+      border: Border(right: BorderSide(color: palette.line)),
     ),
-    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 32),
+    padding: EdgeInsets.symmetric(horizontal: 22, vertical: 32),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         brand(),
-        const SizedBox(height: 52),
+        SizedBox(height: 52),
         label('YOUR WORKSPACE'),
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         ...List.generate(6, (i) {
           final names = [
             'Overview',
@@ -363,28 +317,29 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             Icons.event_note_outlined,
           ];
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(bottom: 8),
             child: Material(
               color: page == i
-                  ? wine.withValues(alpha: .22)
+                  ? palette.wine.withValues(alpha: .22)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(11),
               child: InkWell(
                 borderRadius: BorderRadius.circular(11),
                 onTap: () => setState(() => page = i),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 15,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 15),
                   child: Row(
                     children: [
-                      Icon(icons[i], size: 21, color: page == i ? rose : muted),
-                      const SizedBox(width: 12),
+                      Icon(
+                        icons[i],
+                        size: 21,
+                        color: page == i ? palette.rose : palette.muted,
+                      ),
+                      SizedBox(width: 12),
                       Text(
                         names[i],
                         style: TextStyle(
-                          color: page == i ? cream : muted,
+                          color: page == i ? palette.cream : palette.muted,
                           fontWeight: page == i
                               ? FontWeight.w600
                               : FontWeight.w400,
@@ -398,17 +353,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ),
           );
         }),
-        const Spacer(),
+        Spacer(),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border.all(color: line),
+            border: Border.all(color: palette.line),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.spa_outlined, color: rose, size: 22),
+              Icon(Icons.spa_outlined, color: palette.rose, size: 22),
               SizedBox(height: 12),
               Text(
                 'A little clarity,\nevery day.',
@@ -417,88 +372,154 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               SizedBox(height: 8),
               Text(
                 'Your money. Your pace.',
-                style: TextStyle(color: muted, fontSize: 12),
+                style: TextStyle(color: palette.muted, fontSize: 12),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 24),
-        const Text(
-          'PERSONAL FINANCE',
-          style: TextStyle(fontSize: 10, letterSpacing: 2, color: muted),
-        ),
-      ],
-    ),
-  );
-  Widget topbar(bool wide) => Container(
-    height: 76,
-    padding: EdgeInsets.symmetric(horizontal: wide ? 40 : 20),
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: line)),
-    ),
-    child: Row(
-      children: [
-        if (!wide)
-          brand()
-        else
-          const Text(
-            'Personal workspace',
-            style: TextStyle(color: muted, fontSize: 14),
-          ),
-        const Spacer(),
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: s.connected ? (s.syncError == null ? green : rose) : muted,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
+        SizedBox(height: 24),
         Text(
-          s.connected
-              ? (s.syncing
-                    ? 'Syncing…'
-                    : s.syncError == null
-                    ? 'Connected'
-                    : 'Sync paused')
-              : 'Demo mode',
-          style: const TextStyle(fontSize: 12, color: muted),
-        ),
-        const SizedBox(width: 18),
-        CircleAvatar(
-          radius: 17,
-          backgroundColor: const Color(0xFF383034),
-          child: Text(
-            s.email.isEmpty ? 'E' : s.email[0].toUpperCase(),
-            style: const TextStyle(color: rose, fontSize: 13),
+          'PERSONAL FINANCE',
+          style: TextStyle(
+            fontSize: 10,
+            letterSpacing: 2,
+            color: palette.muted,
           ),
         ),
       ],
     ),
   );
-  Widget demoNotice() => Padding(
-    padding: const EdgeInsets.only(bottom: 26),
+  Widget currencyChooser(bool compact) => PopupMenuButton<String>(
+    tooltip: 'Choose currency',
+    initialValue: selectedCurrency,
+    position: PopupMenuPosition.under,
+    onSelected: (value) => setState(() {
+      selectedCurrency = value;
+      accountFilter = 'All';
+    }),
+    itemBuilder: (context) => currencies.entries
+        .map(
+          (currency) => CheckedPopupMenuItem<String>(
+            value: currency.key,
+            checked: currency.key == selectedCurrency,
+            child: Text('${currency.value} (${currency.key})'),
+          ),
+        )
+        .toList(),
     child: Container(
-      padding: const EdgeInsets.fromLTRB(15, 8, 8, 8),
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2429),
-        border: Border.all(color: wine.withValues(alpha: .35)),
+        color: palette.panel,
+        border: Border.all(color: palette.line),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            compact
+                ? (selectedCurrency == 'IRT' ? 'Toman' : selectedCurrency)
+                : currencies[selectedCurrency]!,
+            style: TextStyle(
+              color: palette.cream,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Icon(Icons.expand_more, size: 18, color: palette.muted),
+        ],
+      ),
+    ),
+  );
+
+  Widget topbar(bool wide) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    final syncStatus = s.connected
+        ? (s.syncing
+              ? 'Syncing…'
+              : s.syncError == null
+              ? 'Connected'
+              : 'Sync paused')
+        : 'Demo mode';
+    return Container(
+      height: 76,
+      padding: EdgeInsets.symmetric(horizontal: wide ? 40 : 20),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: palette.line)),
+      ),
+      child: Row(
+        children: [
+          if (!wide)
+            brand()
+          else
+            Text(
+              'Personal workspace',
+              style: TextStyle(color: palette.muted, fontSize: 14),
+            ),
+          const Spacer(),
+          currencyChooser(compact),
+          SizedBox(width: compact ? 12 : 24),
+          Tooltip(
+            message: syncStatus,
+            child: Semantics(
+              label: syncStatus,
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: s.connected
+                      ? (s.syncError == null ? palette.green : palette.rose)
+                      : palette.muted,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+          if (!compact) ...[
+            const SizedBox(width: 8),
+            Text(
+              syncStatus,
+              style: TextStyle(fontSize: 12, color: palette.muted),
+            ),
+            const SizedBox(width: 18),
+            CircleAvatar(
+              radius: 17,
+              backgroundColor: palette.accentSurface,
+              child: Text(
+                s.email.isEmpty ? 'E' : s.email[0].toUpperCase(),
+                style: TextStyle(color: palette.rose, fontSize: 13),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget demoNotice() => Padding(
+    padding: EdgeInsets.only(bottom: 26),
+    child: Container(
+      padding: EdgeInsets.fromLTRB(15, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: palette.accentSurface,
+        border: Border.all(color: palette.wine.withValues(alpha: .35)),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
-          const Icon(Icons.auto_awesome_outlined, color: rose, size: 17),
-          const SizedBox(width: 10),
-          const Expanded(
+          Icon(Icons.auto_awesome_outlined, color: palette.rose, size: 17),
+          SizedBox(width: 10),
+          Expanded(
             child: Text(
               'A little preview. These are sample records.',
-              style: TextStyle(color: rose, fontSize: 13),
+              style: TextStyle(color: palette.rose, fontSize: 13),
             ),
           ),
           TextButton(
             onPressed: () => setState(() => page = 4),
-            child: const Text('Set up sync', style: TextStyle(fontSize: 13)),
+            child: Text('Set up sync', style: TextStyle(fontSize: 13)),
           ),
         ],
       ),
@@ -532,10 +553,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             letterSpacing: -1.1,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: 9),
         Text(
           sub[page],
-          style: const TextStyle(color: muted, fontSize: 14, height: 1.5),
+          style: TextStyle(color: palette.muted, fontSize: 14, height: 1.5),
         ),
       ],
     );
@@ -547,7 +568,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 : page == 2
                 ? accountForm()
                 : entryForm(),
-            icon: const Icon(Icons.add, size: 18),
+            icon: Icon(Icons.add, size: 18),
             label: Text(
               page == 5
                   ? 'Add bill'
@@ -567,26 +588,26 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               title,
-              if (action != null) ...[const SizedBox(height: 20), action],
+              if (action != null) ...[SizedBox(height: 20), action],
             ],
           );
   }
 
   Widget label(String t) => Text(
     t,
-    style: const TextStyle(
+    style: TextStyle(
       fontSize: 10,
       letterSpacing: 1.6,
-      color: muted,
+      color: palette.muted,
       fontWeight: FontWeight.w600,
     ),
   );
   Widget card(Widget child, {Color? color, EdgeInsets? padding}) => Container(
     width: double.infinity,
-    padding: padding ?? const EdgeInsets.all(24),
+    padding: padding ?? EdgeInsets.all(24),
     decoration: BoxDecoration(
-      color: color ?? panel,
-      border: Border.all(color: line),
+      color: color ?? palette.panel,
+      border: Border.all(color: palette.line),
       borderRadius: BorderRadius.circular(18),
     ),
     child: child,
@@ -594,7 +615,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Widget moneyText(
     int value, {
     double size = 28,
-    Color color = cream,
+    Color? color,
     String? currency,
   }) => FittedBox(
     fit: BoxFit.scaleDown,
@@ -614,12 +635,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             text: '  ${currencyLabel(currency ?? selectedCurrency)}',
             style: TextStyle(
               fontSize: size > 30 ? 14 : 12,
-              color: color.withValues(alpha: .65),
+              color: (color ?? palette.cream).withValues(alpha: .65),
             ),
           ),
         ],
       ),
-      style: TextStyle(color: color),
+      style: TextStyle(color: color ?? palette.cream),
     ),
   );
   Widget responsiveRow(List<Widget> children, {double breakpoint = 700}) =>
@@ -629,7 +650,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 children: [
                   for (var i = 0; i < children.length; i++) ...[
                     children[i],
-                    if (i < children.length - 1) const SizedBox(height: 16),
+                    if (i < children.length - 1) SizedBox(height: 16),
                   ],
                 ],
               )
@@ -638,7 +659,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 children: [
                   for (var i = 0; i < children.length; i++) ...[
                     Expanded(child: children[i]),
-                    if (i < children.length - 1) const SizedBox(width: 18),
+                    if (i < children.length - 1) SizedBox(width: 18),
                   ],
                 ],
               ),
@@ -648,19 +669,21 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     children: [
       IconButton(
         tooltip: 'Previous month',
-        onPressed: () =>
-            setState(() => month = DateTime(month.year, month.month - 1)),
-        icon: const Icon(Icons.chevron_left, size: 20),
+        onPressed: () => setState(
+          () => month = shiftCalendarMonth(month, -1, calendarOf(context)),
+        ),
+        icon: Icon(Icons.chevron_left, size: 20),
       ),
       Text(
-        DateFormat('MMMM yyyy').format(month),
-        style: const TextStyle(fontSize: 14),
+        displayDate(context, month, monthOnly: true),
+        style: TextStyle(fontSize: 14),
       ),
       IconButton(
         tooltip: 'Next month',
-        onPressed: () =>
-            setState(() => month = DateTime(month.year, month.month + 1)),
-        icon: const Icon(Icons.chevron_right, size: 20),
+        onPressed: () => setState(
+          () => month = shiftCalendarMonth(month, 1, calendarOf(context)),
+        ),
+        icon: Icon(Icons.chevron_right, size: 20),
       ),
     ],
   );
@@ -670,12 +693,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       return Column(
         children: [
           children[0],
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: children[1]),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(child: children[2]),
             ],
           ),
@@ -696,48 +719,45 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               children: [
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'Total balance',
-                      style: TextStyle(color: Color(0xFFE4C5CE), fontSize: 14),
+                      style: TextStyle(color: palette.onAccent, fontSize: 14),
                     ),
-                    const Spacer(),
-                    const Icon(
+                    Spacer(),
+                    Icon(
                       Icons.account_balance_wallet_outlined,
-                      color: Color(0xFFE4C5CE),
+                      color: palette.onAccent,
                       size: 20,
                     ),
                   ],
                 ),
-                const SizedBox(height: 25),
+                SizedBox(height: 25),
                 moneyText(
                   currencyAccounts.fold(0, (v, a) => v + balance(a, s.entries)),
                   size: 36,
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 Text(
                   'Across ${currencyAccounts.length} ${currencyLabel(selectedCurrency)} accounts · all time',
-                  style: const TextStyle(
-                    color: Color(0xFFE4C5CE),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: palette.onAccent, fontSize: 12),
                 ),
               ],
             ),
-            color: const Color(0xFF733047),
+            color: palette.accentStrong,
           ),
-          statCard('Income', income, Icons.south_west, green),
-          statCard('Expenses', expense, Icons.north_east, rose),
+          statCard('Income', income, Icons.south_west, palette.green),
+          statCard('Expenses', expense, Icons.north_east, palette.rose),
         ]),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         ForecastSummary(
           store: s,
           currency: selectedCurrency,
           onOpen: () => setState(() => page = 5),
         ),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'This month',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
@@ -746,7 +766,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             monthPicker(),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         LayoutBuilder(
           builder: (context, c) {
             final left = cashFlow();
@@ -756,17 +776,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(flex: 3, child: left),
-                      const SizedBox(width: 20),
+                      SizedBox(width: 20),
                       Expanded(flex: 2, child: right),
                     ],
                   )
-                : Column(children: [left, const SizedBox(height: 18), right]);
+                : Column(children: [left, SizedBox(height: 18), right]);
           },
         ),
-        const SizedBox(height: 30),
+        SizedBox(height: 30),
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'Your accounts',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
@@ -774,11 +794,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ),
             TextButton(
               onPressed: () => setState(() => page = 2),
-              child: const Text('Manage accounts →'),
+              child: Text('Manage accounts →'),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         s.accounts.isEmpty
             ? empty(
                 'Start with an account',
@@ -787,13 +807,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 button: 'Add account',
               )
             : responsiveRow(s.accounts.take(3).map(accountTile).toList()),
-        const SizedBox(height: 30),
+        SizedBox(height: 30),
         card(
           Column(
             children: [
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Recent transactions',
                       style: TextStyle(
@@ -804,11 +824,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   ),
                   TextButton(
                     onPressed: () => setState(() => page = 1),
-                    child: const Text('View all →'),
+                    child: Text('View all →'),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               if (monthly.isEmpty)
                 empty(
                   'A fresh page',
@@ -829,21 +849,21 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       children: [
         Row(
           children: [
-            Text(title, style: const TextStyle(color: muted, fontSize: 14)),
-            const Spacer(),
+            Text(title, style: TextStyle(color: palette.muted, fontSize: 14)),
+            Spacer(),
             Icon(icon, color: color, size: 20),
           ],
         ),
-        const SizedBox(height: 22),
+        SizedBox(height: 22),
         moneyText(value, size: 32),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         Text(
-          DateFormat('MMMM yyyy').format(month),
-          style: const TextStyle(color: muted, fontSize: 12),
+          displayDate(context, month, monthOnly: true),
+          style: TextStyle(color: palette.muted, fontSize: 12),
         ),
       ],
     ),
-    padding: const EdgeInsets.all(18),
+    padding: EdgeInsets.all(18),
   );
   Widget cashFlow() => card(
     Column(
@@ -851,32 +871,32 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'Cash flow',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
               ),
             ),
-            dotLegend('In', green),
-            const SizedBox(width: 14),
-            dotLegend('Out', rose),
+            dotLegend('In', palette.green),
+            SizedBox(width: 14),
+            dotLegend('Out', palette.rose),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Wrap(
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Text(
+            Text(
               'Net this month  ',
-              style: TextStyle(color: muted, fontSize: 12),
+              style: TextStyle(color: palette.muted, fontSize: 12),
             ),
             Text(
               '${displayMoney(totalOf(monthly, 'income') - totalOf(monthly, 'expense'))} ${currencyLabel(selectedCurrency)}',
-              style: const TextStyle(fontSize: 13, color: green),
+              style: TextStyle(fontSize: 13, color: palette.green),
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         SizedBox(
           width: double.infinity,
           child: Semantics(
@@ -885,22 +905,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             hint: 'Move over a bar or tap a day to see its transactions.',
             child: FlowChart(
               entries: monthly,
-              month: month,
+              month: monthStart,
               currency: selectedCurrency,
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('01', style: TextStyle(fontSize: 11, color: muted)),
-            Text('08', style: TextStyle(fontSize: 11, color: muted)),
-            Text('15', style: TextStyle(fontSize: 11, color: muted)),
-            Text('22', style: TextStyle(fontSize: 11, color: muted)),
+            Text('01', style: TextStyle(fontSize: 11, color: palette.muted)),
+            Text('08', style: TextStyle(fontSize: 11, color: palette.muted)),
+            Text('15', style: TextStyle(fontSize: 11, color: palette.muted)),
+            Text('22', style: TextStyle(fontSize: 11, color: palette.muted)),
             Text(
-              '${DateTime(month.year, month.month + 1, 0).day}',
-              style: const TextStyle(fontSize: 11, color: muted),
+              '${calendarMonthLength(month, calendarOf(context))}',
+              style: TextStyle(fontSize: 11, color: palette.muted),
             ),
           ],
         ),
@@ -915,8 +935,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         height: 7,
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
-      const SizedBox(width: 6),
-      Text(name, style: const TextStyle(fontSize: 12, color: muted)),
+      SizedBox(width: 6),
+      Text(name, style: TextStyle(fontSize: 12, color: palette.muted)),
     ],
   );
   List<MapEntry<String, int>> get breakdown {
@@ -933,18 +953,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Spending breakdown',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 25),
+          SizedBox(height: 25),
           if (b.isEmpty)
-            const SizedBox(
+            SizedBox(
               height: 210,
               child: Center(
                 child: Text(
                   'No spending this month.',
-                  style: TextStyle(color: muted),
+                  style: TextStyle(color: palette.muted),
                 ),
               ),
             )
@@ -953,37 +973,34 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 .take(4)
                 .map(
                   (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 18),
+                    padding: EdgeInsets.only(bottom: 18),
                     child: Column(
                       children: [
                         Row(
                           children: [
-                            Text(
-                              item.key,
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                            const Spacer(),
+                            Text(item.key, style: TextStyle(fontSize: 13)),
+                            Spacer(),
                             Text(
                               '${(item.value / total * 100).round()}%',
-                              style: const TextStyle(
-                                color: muted,
+                              style: TextStyle(
+                                color: palette.muted,
                                 fontSize: 12,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 9),
+                        SizedBox(height: 9),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(5),
                           child: LinearProgressIndicator(
                             value: item.value / total,
                             minHeight: 5,
-                            backgroundColor: line,
+                            backgroundColor: palette.line,
                             color: [
-                              rose,
-                              wine,
-                              const Color(0xFFAEA2A8),
-                              const Color(0xFF70636B),
+                              palette.rose,
+                              palette.wine,
+                              palette.muted,
+                              palette.line,
                             ][b.indexOf(item) % 4],
                           ),
                         ),
@@ -993,10 +1010,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
           if (b.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: EdgeInsets.only(top: 4),
               child: Text(
                 '${b.length} categories · ${displayMoney(total)} ${currencyLabel(selectedCurrency)}',
-                style: const TextStyle(color: muted, fontSize: 12),
+                style: TextStyle(color: palette.muted, fontSize: 12),
               ),
             ),
         ],
@@ -1017,12 +1034,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       children: [
         Row(
           children: [
-            Icon(accountIcon(a.kind), color: rose, size: 20),
-            const SizedBox(width: 10),
+            Icon(accountIcon(a.kind), color: palette.rose, size: 20),
+            SizedBox(width: 10),
             Expanded(
               child: Text(
                 a.name,
-                style: const TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -1031,7 +1048,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 tooltip: 'Account options',
                 onSelected: (_) => deleteAccount(a),
                 itemBuilder: (_) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'delete',
                     child: Text('Delete empty account'),
                   ),
@@ -1039,10 +1056,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               ),
           ],
         ),
-        const SizedBox(height: 22),
+        SizedBox(height: 22),
         moneyText(balance(a, s.entries), size: 25, currency: a.currency),
-        const SizedBox(height: 12),
-        Text(a.kind, style: const TextStyle(fontSize: 12, color: muted)),
+        SizedBox(height: 12),
+        Text(a.kind, style: TextStyle(fontSize: 12, color: palette.muted)),
       ],
     ),
   );
@@ -1066,7 +1083,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       borderRadius: BorderRadius.circular(10),
       onTap: () => entryDetail(e),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 2),
+        padding: EdgeInsets.symmetric(vertical: 15, horizontal: 2),
         child: Row(
           children: [
             Container(
@@ -1074,39 +1091,36 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               height: 40,
               decoration: BoxDecoration(
                 color: incoming
-                    ? green.withValues(alpha: .10)
-                    : const Color(0xFF30262C),
+                    ? palette.green.withValues(alpha: .10)
+                    : palette.accentSurface,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 categoryIcon(e.category),
-                color: incoming ? green : rose,
+                color: incoming ? palette.green : palette.rose,
                 size: 19,
               ),
             ),
-            const SizedBox(width: 13),
+            SizedBox(width: 13),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     e.title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 5),
+                  SizedBox(height: 5),
                   Text(
                     '${e.category} · ${accountName(e.accountId)}',
-                    style: const TextStyle(color: muted, fontSize: 12),
+                    style: TextStyle(color: palette.muted, fontSize: 12),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -1117,15 +1131,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       ? '+'
                       : '−'}${currencyMoney(e.amount, accountCurrency(e.accountId))}',
                   style: TextStyle(
-                    color: incoming ? green : cream,
+                    color: incoming ? palette.green : palette.cream,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 5),
+                SizedBox(height: 5),
                 Text(
-                  '${DateFormat('MMM d').format(e.date)} · ${currencyLabel(accountCurrency(e.accountId))}',
-                  style: const TextStyle(color: muted, fontSize: 11),
+                  '${displayDate(context, e.date)} · ${currencyLabel(accountCurrency(e.accountId))}',
+                  style: TextStyle(color: palette.muted, fontSize: 11),
                 ),
               ],
             ),
@@ -1142,20 +1156,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     String button = 'Add transaction',
   }) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 12),
+    padding: EdgeInsets.symmetric(vertical: 32, horizontal: 12),
     child: Column(
       children: [
-        const Icon(Icons.receipt_long_outlined, color: muted, size: 30),
-        const SizedBox(height: 16),
-        Text(title, style: const TextStyle(fontSize: 17)),
-        const SizedBox(height: 8),
+        Icon(Icons.receipt_long_outlined, color: palette.muted, size: 30),
+        SizedBox(height: 16),
+        Text(title, style: TextStyle(fontSize: 17)),
+        SizedBox(height: 8),
         Text(
           text,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: muted, fontSize: 14),
+          style: TextStyle(color: palette.muted, fontSize: 14),
         ),
         if (action != null) ...[
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
           OutlinedButton(onPressed: action, child: Text(button)),
         ],
       ],
@@ -1164,15 +1178,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Widget transactions() => Column(
     children: [
       Align(alignment: Alignment.centerRight, child: monthPicker()),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       TextField(
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           hintText: 'Search transactions…',
           prefixIcon: Icon(Icons.search, size: 21),
         ),
         onChanged: (v) => setState(() => query = v),
       ),
-      const SizedBox(height: 18),
+      SizedBox(height: 18),
       Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -1182,16 +1196,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               label: Text(v),
               selected: filter == v,
               onSelected: (_) => setState(() => filter = v),
-              selectedColor: wine.withValues(alpha: .5),
+              selectedColor: palette.wine.withValues(alpha: .5),
             ),
           ),
           DropdownButton<String>(
             value: s.accounts.any((a) => a.id == accountFilter)
                 ? accountFilter
                 : 'All',
-            underline: const SizedBox(),
+            underline: SizedBox(),
             items: [
-              const DropdownMenuItem(value: 'All', child: Text('All accounts')),
+              DropdownMenuItem(value: 'All', child: Text('All accounts')),
               ...s.accounts.map(
                 (a) => DropdownMenuItem(
                   value: a.id,
@@ -1203,7 +1217,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
         ],
       ),
-      const SizedBox(height: 20),
+      SizedBox(height: 20),
       card(
         Column(
           children: [
@@ -1211,20 +1225,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               children: [
                 Text(
                   '${filtered.length} transactions',
-                  style: const TextStyle(color: muted, fontSize: 13),
+                  style: TextStyle(color: palette.muted, fontSize: 13),
                 ),
-                const Spacer(),
+                Spacer(),
                 Text(
                   selectedCurrency,
-                  style: const TextStyle(
-                    color: muted,
+                  style: TextStyle(
+                    color: palette.muted,
                     fontSize: 10,
                     letterSpacing: 1.2,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             if (filtered.isEmpty)
               empty(
                 'Nothing here yet',
@@ -1243,14 +1257,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     children: [
       Text(
         'TOTAL BALANCE',
-        style: const TextStyle(color: muted, fontSize: 11, letterSpacing: 1.6),
+        style: TextStyle(
+          color: palette.muted,
+          fontSize: 11,
+          letterSpacing: 1.6,
+        ),
       ),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       moneyText(
         currencyAccounts.fold(0, (v, a) => v + balance(a, s.entries)),
         size: 42,
       ),
-      const SizedBox(height: 30),
+      SizedBox(height: 30),
       if (s.accounts.isEmpty)
         empty(
           'Your first account',
@@ -1275,28 +1293,28 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 .toList(),
           ),
         ),
-      const SizedBox(height: 24),
+      SizedBox(height: 24),
       OutlinedButton.icon(
         onPressed: canTransfer
             ? () => entryForm(initialType: 'transfer')
             : null,
-        icon: const Icon(Icons.swap_horiz, size: 18),
-        label: const Text('Transfer between accounts'),
+        icon: Icon(Icons.swap_horiz, size: 18),
+        label: Text('Transfer between accounts'),
       ),
     ],
   );
   Widget insights() => Column(
     children: [
       Align(alignment: Alignment.centerRight, child: monthPicker()),
-      const SizedBox(height: 16),
+      SizedBox(height: 16),
       responsiveRow([cashFlow(), spending()]),
-      const SizedBox(height: 20),
+      SizedBox(height: 20),
       card(
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('By category', style: TextStyle(fontSize: 18)),
-            const SizedBox(height: 18),
+            Text('By category', style: TextStyle(fontSize: 18)),
+            SizedBox(height: 18),
             if (breakdown.isEmpty)
               empty(
                 'A clean slate',
@@ -1305,20 +1323,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             else
               ...breakdown.map(
                 (b) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(vertical: 12),
                   child: Row(
                     children: [
-                      Icon(categoryIcon(b.key), size: 20, color: rose),
-                      const SizedBox(width: 14),
+                      Icon(categoryIcon(b.key), size: 20, color: palette.rose),
+                      SizedBox(width: 14),
                       Expanded(
-                        child: Text(
-                          b.key,
-                          style: const TextStyle(fontSize: 14),
-                        ),
+                        child: Text(b.key, style: TextStyle(fontSize: 14)),
                       ),
                       Text(
                         '${displayMoney(b.value)} ${currencyLabel(selectedCurrency)}',
-                        style: const TextStyle(fontSize: 14),
+                        style: TextStyle(fontSize: 14),
                       ),
                     ],
                   ),
@@ -1336,57 +1351,97 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Your preferences', style: TextStyle(fontSize: 19)),
-            const SizedBox(height: 24),
-            const ListTile(
+            Text('Your preferences', style: TextStyle(fontSize: 19)),
+            SizedBox(height: 24),
+            ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.payments_outlined, color: rose),
+              leading: Icon(Icons.payments_outlined, color: palette.rose),
               title: Text('Account currencies'),
               subtitle: Text(
                 'Toman, USD, EUR and GBP. Totals stay separate by currency.',
-                style: TextStyle(color: muted, fontSize: 13),
+                style: TextStyle(color: palette.muted, fontSize: 13),
               ),
             ),
-            const Divider(color: line),
-            const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.calendar_today_outlined, color: rose),
-              title: Text('Monthly overview'),
-              subtitle: Text(
-                'Calendar months use the Gregorian calendar.',
-                style: TextStyle(color: muted, fontSize: 13),
-              ),
+            Divider(color: palette.line),
+            SizedBox(height: 16),
+            Text('Appearance', style: Theme.of(context).textTheme.titleMedium),
+            SizedBox(height: 10),
+            DropdownButtonFormField<bool>(
+              isExpanded: true,
+              initialValue: PreferencesScope.maybeOf(context)!.light,
+              decoration: InputDecoration(labelText: 'Theme'),
+              items: [
+                DropdownMenuItem(
+                  value: false,
+                  child: Text('Dark · Wine & palette.coal'),
+                ),
+                DropdownMenuItem(
+                  value: true,
+                  child: Text('Light · Pistachio & vanilla'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  PreferencesScope.maybeOf(context)!.setLight(value);
+                }
+              },
+            ),
+            SizedBox(height: 20),
+            DropdownButtonFormField<AppCalendar>(
+              isExpanded: true,
+              initialValue: calendarOf(context),
+              decoration: InputDecoration(labelText: 'Calendar'),
+              items: [
+                DropdownMenuItem(
+                  value: AppCalendar.gregorian,
+                  child: Text('Gregorian'),
+                ),
+                DropdownMenuItem(
+                  value: AppCalendar.shamsi,
+                  child: Text('Solar Hijri (Shamsi)'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  PreferencesScope.maybeOf(context)!.setCalendar(value);
+                }
+              },
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Dates and monthly summaries follow your calendar. Shamsi dates use English month names and digits. Preferences are saved on this device.',
+              style: TextStyle(color: palette.muted, fontSize: 13, height: 1.5),
             ),
           ],
         ),
       ),
-      const SizedBox(height: 20),
+      SizedBox(height: 20),
       card(
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.cloud_outlined, color: rose),
-                const SizedBox(width: 12),
-                const Text('Private sync', style: TextStyle(fontSize: 19)),
+                Icon(Icons.cloud_outlined, color: palette.rose),
+                SizedBox(width: 12),
+                Text('Private sync', style: TextStyle(fontSize: 19)),
               ],
             ),
-            const SizedBox(height: 18),
+            SizedBox(height: 18),
             Text(
               s.connected
                   ? 'Signed in as ${s.email}'
                   : 'Keep your MacBook and iPhone in step.',
-              style: const TextStyle(fontSize: 15),
+              style: TextStyle(fontSize: 15),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Text(
               s.connected
                   ? 'Changes sync automatically while the app is open. An internet connection is needed to save.'
                   : 'Connect your Supabase project, then sign in on both devices. Demo records stay separate from your real accounts.',
-              style: const TextStyle(color: muted, fontSize: 14, height: 1.7),
+              style: TextStyle(color: palette.muted, fontSize: 14, height: 1.7),
             ),
-            const SizedBox(height: 22),
+            SizedBox(height: 22),
             if (s.connected)
               Wrap(
                 spacing: 12,
@@ -1394,8 +1449,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 children: [
                   OutlinedButton.icon(
                     onPressed: s.syncing ? null : s.reload,
-                    icon: const Icon(Icons.sync, size: 18),
-                    label: const Text('Sync now'),
+                    icon: Icon(Icons.sync, size: 18),
+                    label: Text('Sync now'),
                   ),
                   TextButton(
                     onPressed: () async {
@@ -1404,33 +1459,33 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                         message('Signed out. You are viewing sample records.');
                       }
                     },
-                    child: const Text('Sign out'),
+                    child: Text('Sign out'),
                   ),
                 ],
               )
             else
               FilledButton.icon(
                 onPressed: connectForm,
-                icon: const Icon(Icons.lock_outline, size: 18),
-                label: const Text('Connect your workspace'),
+                icon: Icon(Icons.lock_outline, size: 18),
+                label: Text('Connect your workspace'),
               ),
             if (s.lastSync != null)
               Padding(
-                padding: const EdgeInsets.only(top: 16),
+                padding: EdgeInsets.only(top: 16),
                 child: Text(
                   'Last synced ${DateFormat('HH:mm:ss').format(s.lastSync!)}',
-                  style: const TextStyle(color: muted, fontSize: 12),
+                  style: TextStyle(color: palette.muted, fontSize: 12),
                 ),
               ),
           ],
         ),
       ),
-      const SizedBox(height: 20),
-      const Padding(
+      SizedBox(height: 20),
+      Padding(
         padding: EdgeInsets.symmetric(horizontal: 4),
         child: Text(
           'Ember 1.0 · Made for everyday clarity.',
-          style: TextStyle(color: muted, fontSize: 12),
+          style: TextStyle(color: palette.muted, fontSize: 12),
         ),
       ),
     ],
@@ -1449,22 +1504,19 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               size: 32,
               currency: accountCurrency(e.accountId),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Text(
-              '${e.category} · ${DateFormat.yMMMd().format(e.date)}',
-              style: const TextStyle(color: muted),
+              '${e.category} · ${displayDate(context, e.date, year: true)}',
+              style: TextStyle(color: palette.muted),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text(
               '${accountName(e.accountId)}${e.destinationId == null ? '' : ' → ${accountName(e.destinationId!)}'}',
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Close')),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -1481,7 +1533,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 }
               }
             },
-            child: const Text('Delete', style: TextStyle(color: rose)),
+            child: Text('Delete', style: TextStyle(color: palette.rose)),
           ),
         ],
       ),
@@ -1497,11 +1549,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete'),
+              child: Text('Delete'),
             ),
           ],
         ),
@@ -1534,15 +1586,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           controller: name,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Account name',
             hintText: 'e.g. Everyday bank',
           ),
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         DropdownButtonFormField<String>(
           initialValue: kind,
-          decoration: const InputDecoration(labelText: 'Account type'),
+          decoration: InputDecoration(labelText: 'Account type'),
           items: [
             'Bank',
             'Cash',
@@ -1551,22 +1603,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
           onChanged: (v) => set(() => kind = v!),
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         DropdownButtonFormField<String>(
           initialValue: currency,
-          decoration: const InputDecoration(labelText: 'Currency'),
+          decoration: InputDecoration(labelText: 'Currency'),
           items: currencies.entries
               .map((c) => DropdownMenuItem(value: c.key, child: Text(c.value)))
               .toList(),
           onChanged: (value) => set(() => currency = value!),
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         TextField(
           controller: opening,
           inputFormatters: [
             TomanAmountFormatter(() => currency, allowNegative: true),
           ],
-          keyboardType: const TextInputType.numberWithOptions(
+          keyboardType: TextInputType.numberWithOptions(
             signed: true,
             decimal: true,
           ),
@@ -1628,7 +1680,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       'A small habit. A clearer picture.',
       (set) => [
         SegmentedButton<String>(
-          segments: const [
+          segments: [
             ButtonSegment(value: 'expense', label: Text('Expense')),
             ButtonSegment(value: 'income', label: Text('Income')),
             ButtonSegment(value: 'transfer', label: Text('Transfer')),
@@ -1642,22 +1694,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             chooseCompatibleDestination();
           }),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         TextField(
           controller: amount,
           inputFormatters: [
             TomanAmountFormatter(() => accountCurrency(account)),
           ],
           autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(fontSize: 26),
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
+          style: TextStyle(fontSize: 26),
           decoration: InputDecoration(
             labelText: 'Amount',
             suffixText: currencyLabel(accountCurrency(account)),
             hintText: '0',
           ),
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         TextField(
           controller: title,
           textCapitalization: TextCapitalization.sentences,
@@ -1670,7 +1722,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 : 'e.g. Morning coffee',
           ),
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         DropdownButtonFormField<String>(
           initialValue: account,
           decoration: InputDecoration(
@@ -1689,14 +1741,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             chooseCompatibleDestination();
           }),
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         if (type == 'transfer' && compatibleDestinations().isNotEmpty)
           DropdownButtonFormField<String>(
             initialValue:
                 compatibleDestinations().any((a) => a.id == destination)
                 ? destination
                 : null,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'To account',
               helperText: 'Choose an account with the same currency.',
             ),
@@ -1713,13 +1765,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         else if (type == 'transfer')
           Text(
             'Add another ${currencyLabel(accountCurrency(account))} account to make a transfer.',
-            style: const TextStyle(color: muted, height: 1.5),
+            style: TextStyle(color: palette.muted, height: 1.5),
           )
         else
           DropdownButtonFormField<String>(
             key: ValueKey(type),
             initialValue: category,
-            decoration: const InputDecoration(labelText: 'Category'),
+            decoration: InputDecoration(labelText: 'Category'),
             items: (type == 'income' ? incomeCategories : categories)
                 .map(
                   (c) => DropdownMenuItem(
@@ -1728,9 +1780,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IgnoreBaseline(
-                          child: Icon(categoryIcon(c), size: 20, color: rose),
+                          child: Icon(
+                            categoryIcon(c),
+                            size: 20,
+                            color: palette.rose,
+                          ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Text(c),
                       ],
                     ),
@@ -1739,10 +1795,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 .toList(),
             onChanged: (v) => set(() => category = v!),
           ),
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         OutlinedButton.icon(
           onPressed: () async {
-            final picked = await showDatePicker(
+            final picked = await pickAppDate(
               context: context,
               initialDate: date,
               firstDate: DateTime(2000),
@@ -1750,8 +1806,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             );
             if (picked != null) set(() => date = picked);
           },
-          icon: const Icon(Icons.calendar_today_outlined, size: 17),
-          label: Text(DateFormat.yMMMMd().format(date)),
+          icon: Icon(Icons.calendar_today_outlined, size: 17),
+          label: Text(displayDate(context, date, year: true)),
         ),
       ],
       () async {
@@ -1809,11 +1865,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (!s.remindersAvailable && s.connected)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: 20),
             child: Text(
               'Your workspace needs the reminders update before cloud reminders can be saved.',
-              style: TextStyle(color: rose),
+              style: TextStyle(color: palette.rose),
             ),
           ),
         Wrap(
@@ -1821,55 +1877,55 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           runSpacing: 12,
           children: [
             ChoiceChip(
-              label: const Text('Upcoming'),
+              label: Text('Upcoming'),
               selected: !showPaidReminders,
               onSelected: (_) => setState(() => showPaidReminders = false),
             ),
             ChoiceChip(
-              label: const Text('Paid'),
+              label: Text('Paid'),
               selected: showPaidReminders,
               onSelected: (_) => setState(() => showPaidReminders = true),
             ),
           ],
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         if (!showPaidReminders)
           Text(
             overdue > 0
                 ? '$overdue overdue · ${items.length} pending'
                 : '${items.length} upcoming reminders',
-            style: const TextStyle(color: muted, fontSize: 16),
+            style: TextStyle(color: palette.muted, fontSize: 16),
           ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         if (items.isEmpty)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(32),
+            padding: EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: panel,
+              color: palette.panel,
               borderRadius: BorderRadius.circular(18),
             ),
             child: Column(
               children: [
-                const Icon(
+                Icon(
                   Icons.event_available_outlined,
                   size: 34,
-                  color: rose,
+                  color: palette.rose,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
                   showPaidReminders
                       ? 'Paid bills will appear here.'
                       : 'Nothing coming up yet.',
-                  style: const TextStyle(fontSize: 20),
+                  style: TextStyle(fontSize: 20),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   showPaidReminders
                       ? 'Your recorded expenses stay in Activity.'
                       : 'Add a loan installment, rent, or another future expense.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: muted, fontSize: 14),
+                  style: TextStyle(color: palette.muted, fontSize: 14),
                 ),
               ],
             ),
@@ -1877,7 +1933,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         ...items.map((r) {
           final days = r.daysUntil(DateTime.now());
           final status = r.paid
-              ? 'Paid ${DateFormat.yMMMd().format(r.paidDate!)}'
+              ? 'Paid ${displayDate(context, r.paidDate!, year: true)}'
               : days < 0
               ? '${-days} ${days == -1 ? 'day' : 'days'} overdue'
               : days == 0
@@ -1886,13 +1942,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               ? 'Due tomorrow'
               : 'Due in $days days';
           return Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.all(22),
+            margin: EdgeInsets.only(bottom: 14),
+            padding: EdgeInsets.all(22),
             decoration: BoxDecoration(
-              color: panel,
+              color: palette.panel,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: !r.paid && days < 0 ? rose.withValues(alpha: .5) : line,
+                color: !r.paid && days < 0
+                    ? palette.rose.withValues(alpha: .5)
+                    : palette.line,
               ),
             ),
             child: Column(
@@ -1905,24 +1963,27 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       r.paid
                           ? Icons.check_circle_outline
                           : Icons.event_note_outlined,
-                      color: r.paid ? green : rose,
+                      color: r.paid ? palette.green : palette.rose,
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             r.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          SizedBox(height: 6),
                           Text(
                             '${r.category} · ${accountName(r.accountId)}',
-                            style: const TextStyle(color: muted, fontSize: 14),
+                            style: TextStyle(
+                              color: palette.muted,
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),
@@ -1939,11 +2000,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           return;
                         }
                         if (action == 'postpone') {
-                          final date = await showDatePicker(
+                          final date = await pickAppDate(
                             context: context,
-                            initialDate: DateTime.now().add(
-                              const Duration(days: 1),
-                            ),
+                            initialDate: DateTime.now().add(Duration(days: 1)),
                             firstDate: DateTime.now(),
                             lastDate: DateTime(2100),
                           );
@@ -1976,21 +2035,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       },
                       itemBuilder: (_) => [
                         if (!r.paid)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'calendar',
                             child: Text('Add to calendar'),
                           ),
                         if (!r.paid)
-                          const PopupMenuItem(
-                            value: 'edit',
-                            child: Text('Edit'),
-                          ),
+                          PopupMenuItem(value: 'edit', child: Text('Edit')),
                         if (!r.paid)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'postpone',
                             child: Text('Postpone'),
                           ),
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'delete',
                           child: Text('Delete reminder'),
                         ),
@@ -1998,39 +2054,39 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
-                const SizedBox(height: 22),
+                SizedBox(height: 22),
                 Text(
                   '${currencyMoney(r.amount, accountCurrency(r.accountId))} ${currencyLabel(accountCurrency(r.accountId))}',
-                  style: const TextStyle(fontSize: 25),
+                  style: TextStyle(fontSize: 25),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 Text(
                   status,
                   style: TextStyle(
                     color: r.paid
-                        ? green
+                        ? palette.green
                         : days <= 0
-                        ? rose
-                        : cream,
+                        ? palette.rose
+                        : palette.cream,
                     fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: 5),
+                SizedBox(height: 5),
                 Text(
-                  'Due ${DateFormat.yMMMMd().format(r.dueDate)}',
-                  style: const TextStyle(color: muted, fontSize: 14),
+                  'Due ${displayDate(context, r.dueDate, year: true)}',
+                  style: TextStyle(color: palette.muted, fontSize: 14),
                 ),
                 if (r.note.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 12),
+                    padding: EdgeInsets.only(top: 12),
                     child: Text(
                       r.note,
-                      style: const TextStyle(color: muted, fontSize: 14),
+                      style: TextStyle(color: palette.muted, fontSize: 14),
                     ),
                   ),
                 if (!r.paid)
                   Padding(
-                    padding: const EdgeInsets.only(top: 18),
+                    padding: EdgeInsets.only(top: 18),
                     child: Wrap(
                       spacing: 12,
                       runSpacing: 12,
@@ -2039,16 +2095,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           onPressed: s.busy || s.syncing
                               ? null
                               : () => payReminderForm(r),
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text('Mark as paid'),
+                          icon: Icon(Icons.check, size: 18),
+                          label: Text('Mark as paid'),
                         ),
                         OutlinedButton.icon(
                           onPressed: () => calendarForm(r),
-                          icon: const Icon(
-                            Icons.event_available_outlined,
-                            size: 18,
-                          ),
-                          label: const Text('Add to calendar'),
+                          icon: Icon(Icons.event_available_outlined, size: 18),
+                          label: Text('Add to calendar'),
                         ),
                       ],
                     ),
@@ -2072,17 +2125,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
     await formDialog(
       'Add to calendar',
-      '${reminder.title} · ${DateFormat.yMMMd().format(reminder.dueDate)}',
+      '${reminder.title} · ${displayDate(context, reminder.dueDate, year: true)}',
       (set) => [
-        const Text(
+        Text(
           'The event is set for 9:00 AM in your calendar’s timezone.',
           style: TextStyle(fontSize: 16, height: 1.5),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         DropdownButtonFormField<int>(
           initialValue: alert,
-          decoration: const InputDecoration(labelText: 'Requested alert'),
-          items: const [
+          decoration: InputDecoration(labelText: 'Requested alert'),
+          items: [
             DropdownMenuItem(
               value: 0,
               child: Text('On the due date at 9:00 AM'),
@@ -2095,21 +2148,21 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           isExpanded: true,
           onChanged: (value) => set(() => alert = value!),
         ),
-        const SizedBox(height: 20),
-        const Text(
+        SizedBox(height: 20),
+        Text(
           'Open the downloaded .ics file in your calendar and confirm the event. In Google Calendar, import it from Settings → Import & export on a computer.',
-          style: TextStyle(fontSize: 14, color: muted, height: 1.5),
+          style: TextStyle(fontSize: 14, color: palette.muted, height: 1.5),
         ),
-        const SizedBox(height: 12),
-        const Text(
+        SizedBox(height: 12),
+        Text(
           'Check the alert after importing: calendar apps may apply their own settings. Changes and payments in Ember won’t update this copy. Repeated imports may create duplicates.',
-          style: TextStyle(fontSize: 14, color: muted, height: 1.5),
+          style: TextStyle(fontSize: 14, color: palette.muted, height: 1.5),
         ),
         if (!calendarDownloadSupported) ...[
-          const SizedBox(height: 12),
-          const Text(
+          SizedBox(height: 12),
+          Text(
             'Open Ember in your browser to download the calendar file.',
-            style: TextStyle(color: rose),
+            style: TextStyle(color: palette.rose),
           ),
         ],
       ],
@@ -2156,7 +2209,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         currencyAccounts.firstOrNull?.id ??
         s.accounts.first.id;
     var category = reminder?.category ?? 'Bills';
-    var date = reminder?.dueDate ?? DateTime.now().add(const Duration(days: 1));
+    var date = reminder?.dueDate ?? DateTime.now().add(Duration(days: 1));
     final title = TextEditingController(text: reminder?.title ?? '');
     final amount = TextEditingController(
       text: reminder == null
@@ -2171,16 +2224,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         TextField(
           controller: title,
           maxLength: 120,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Expense name',
             hintText: 'Loan payment',
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         DropdownButtonFormField<String>(
           initialValue: account,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Pay from'),
+          decoration: InputDecoration(labelText: 'Pay from'),
           items: s.accounts
               .map(
                 (a) => DropdownMenuItem(
@@ -2193,30 +2246,30 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             account = value!;
           }),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         TextField(
           controller: amount,
           inputFormatters: [
             TomanAmountFormatter(() => accountCurrency(account)),
           ],
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             labelText: 'Amount (${currencyLabel(accountCurrency(account))})',
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         DropdownButtonFormField<String>(
           initialValue: category,
-          decoration: const InputDecoration(labelText: 'Category'),
+          decoration: InputDecoration(labelText: 'Category'),
           items: categories
               .map((c) => DropdownMenuItem(value: c, child: Text(c)))
               .toList(),
           onChanged: (value) => set(() => category = value!),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         OutlinedButton.icon(
           onPressed: () async {
-            final picked = await showDatePicker(
+            final picked = await pickAppDate(
               context: context,
               initialDate: date,
               firstDate: DateTime(2000),
@@ -2224,15 +2277,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             );
             if (picked != null) set(() => date = picked);
           },
-          icon: const Icon(Icons.calendar_today_outlined),
-          label: Text('Due ${DateFormat.yMMMd().format(date)}'),
+          icon: Icon(Icons.calendar_today_outlined),
+          label: Text('Due ${displayDate(context, date, year: true)}'),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         TextField(
           controller: note,
           maxLength: 1000,
           maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Note (optional)'),
+          decoration: InputDecoration(labelText: 'Note (optional)'),
         ),
       ],
       () async {
@@ -2275,7 +2328,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       (set) => [
         OutlinedButton.icon(
           onPressed: () async {
-            final picked = await showDatePicker(
+            final picked = await pickAppDate(
               context: context,
               initialDate: date,
               firstDate: DateTime(2000),
@@ -2283,8 +2336,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             );
             if (picked != null) set(() => date = picked);
           },
-          icon: const Icon(Icons.calendar_today_outlined),
-          label: Text('Paid ${DateFormat.yMMMd().format(date)}'),
+          icon: Icon(Icons.calendar_today_outlined),
+          label: Text('Paid ${displayDate(context, date, year: true)}'),
         ),
       ],
       () => s.payReminder(r.id, date),
@@ -2301,40 +2354,40 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       'Your private workspace',
       'Use the same sign-in on your MacBook and iPhone.',
       (set) => [
-        const Text(
+        Text(
           'First, run supabase/schema.sql and create your user in Supabase Authentication. Full steps are in SETUP.md.',
-          style: TextStyle(color: muted, height: 1.6, fontSize: 14),
+          style: TextStyle(color: palette.muted, height: 1.6, fontSize: 14),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         TextField(
           controller: url,
           keyboardType: TextInputType.url,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Supabase project URL',
             hintText: 'https://your-project.supabase.co',
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         TextField(
           controller: key,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Publishable key',
             helperText: 'Public/anon key only. Never a secret key.',
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         TextField(
           controller: email,
           keyboardType: TextInputType.emailAddress,
-          autofillHints: const [AutofillHints.email],
-          decoration: const InputDecoration(labelText: 'Email'),
+          autofillHints: [AutofillHints.email],
+          decoration: InputDecoration(labelText: 'Email'),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         TextField(
           controller: password,
           obscureText: true,
-          autofillHints: const [AutofillHints.password],
-          decoration: const InputDecoration(labelText: 'Password'),
+          autofillHints: [AutofillHints.password],
+          decoration: InputDecoration(labelText: 'Password'),
         ),
       ],
       () async {
@@ -2361,15 +2414,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           controller: password,
           obscureText: true,
           autofocus: true,
-          autofillHints: const [AutofillHints.newPassword],
-          decoration: const InputDecoration(labelText: 'New password'),
+          autofillHints: [AutofillHints.newPassword],
+          decoration: InputDecoration(labelText: 'New password'),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         TextField(
           controller: confirm,
           obscureText: true,
-          autofillHints: const [AutofillHints.newPassword],
-          decoration: const InputDecoration(labelText: 'Confirm new password'),
+          autofillHints: [AutofillHints.newPassword],
+          decoration: InputDecoration(labelText: 'Confirm new password'),
         ),
       ],
       () async {
@@ -2404,14 +2457,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         builder: (ctx, set) => PopScope(
           canPop: canClose && !saving,
           child: Dialog(
-            insetPadding: const EdgeInsets.all(16),
+            insetPadding: EdgeInsets.all(16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(22),
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 490),
+              constraints: BoxConstraints(maxWidth: 490),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(26),
+                padding: EdgeInsets.all(26),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2421,39 +2474,36 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                         Expanded(
                           child: Text(
                             title,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              letterSpacing: -.5,
-                            ),
+                            style: TextStyle(fontSize: 24, letterSpacing: -.5),
                           ),
                         ),
                         if (canClose)
                           IconButton(
                             tooltip: 'Close',
                             onPressed: saving ? null : () => Navigator.pop(ctx),
-                            icon: const Icon(Icons.close, size: 20),
+                            icon: Icon(Icons.close, size: 20),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: muted,
+                      style: TextStyle(
+                        color: palette.muted,
                         fontSize: 14,
                         height: 1.6,
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
                     ...fields(set),
                     if (error != null) ...[
-                      const SizedBox(height: 18),
+                      SizedBox(height: 18),
                       Text(
                         error!,
-                        style: const TextStyle(color: rose, fontSize: 14),
+                        style: TextStyle(color: palette.rose, fontSize: 14),
                       ),
                     ],
-                    const SizedBox(height: 26),
+                    SizedBox(height: 26),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
@@ -2477,7 +2527,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 }
                               },
                         child: saving
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
@@ -2499,7 +2549,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 }
 
 class _FlowSelection {
-  const _FlowSelection(this.day, this.isIncome);
+  _FlowSelection(this.day, this.isIncome);
   final int day;
   final bool isIncome;
 }
@@ -2520,14 +2570,24 @@ class FlowChart extends StatefulWidget {
   State<FlowChart> createState() => _FlowChartState();
 }
 
-class _FlowChartState extends State<FlowChart> {
+class _FlowChartState extends State<FlowChart> with PaletteState<FlowChart> {
   _FlowSelection? selection;
+  @override
+  void didUpdateWidget(covariant FlowChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.month != widget.month ||
+        oldWidget.entries != widget.entries) {
+      selection = null;
+    }
+  }
 
   _FlowSelection? _selectionAt(Offset point, Size size, {bool touch = false}) {
-    final days = DateTime(widget.month.year, widget.month.month + 1, 0).day;
+    final days = calendarMonthLength(widget.month, calendarOf(context));
     final day = (point.dx / (size.width / days)).floor() + 1;
     if (day < 1 || day > days) return null;
-    final dayEntries = widget.entries.where((entry) => entry.date.day == day);
+    final dayEntries = widget.entries.where(
+      (entry) => calendarDayNumber(entry.date, calendarOf(context)) == day,
+    );
     final income = dayEntries
         .where((entry) => entry.type == 'income')
         .fold<int>(0, (sum, entry) => sum + entry.amount);
@@ -2552,11 +2612,18 @@ class _FlowChartState extends State<FlowChart> {
     final dailyExpenses = <int, int>{};
     for (final entry in widget.entries) {
       if (entry.type == 'income') {
-        dailyIncome[entry.date.day] =
-            (dailyIncome[entry.date.day] ?? 0) + entry.amount;
+        dailyIncome[calendarDayNumber(entry.date, calendarOf(context))] =
+            (dailyIncome[calendarDayNumber(entry.date, calendarOf(context))] ??
+                0) +
+            entry.amount;
       } else if (entry.type == 'expense') {
-        dailyExpenses[entry.date.day] =
-            (dailyExpenses[entry.date.day] ?? 0) + entry.amount;
+        dailyExpenses[calendarDayNumber(entry.date, calendarOf(context))] =
+            (dailyExpenses[calendarDayNumber(
+                  entry.date,
+                  calendarOf(context),
+                )] ??
+                0) +
+            entry.amount;
       }
     }
     final maxValue = math.max(
@@ -2606,7 +2673,8 @@ class _FlowChartState extends State<FlowChart> {
         : widget.entries
               .where(
                 (entry) =>
-                    entry.date.day == current.day &&
+                    calendarDayNumber(entry.date, calendarOf(context)) ==
+                        current.day &&
                     entry.type == (current.isIncome ? 'income' : 'expense'),
               )
               .toList();
@@ -2616,7 +2684,10 @@ class _FlowChartState extends State<FlowChart> {
     );
     final selectedDate = current == null
         ? null
-        : DateTime(widget.month.year, widget.month.month, current.day);
+        : DateUtils.addDaysToDate(
+            calendarMonthStart(widget.month, calendarOf(context)),
+            current.day - 1,
+          );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -2644,6 +2715,8 @@ class _FlowChartState extends State<FlowChart> {
                     painter: FlowPainter(
                       widget.entries,
                       widget.month,
+                      palette: palette,
+                      calendar: calendarOf(context),
                       selectedDay: current?.day,
                       selectedIsIncome: current?.isIncome,
                     ),
@@ -2653,50 +2726,50 @@ class _FlowChartState extends State<FlowChart> {
               ),
             ),
             if (current != null && selectedDate != null) ...[
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: panel,
+                  color: palette.panel,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: line),
+                  border: Border.all(color: palette.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${current.isIncome ? 'Income' : 'Expense'} · ${DateFormat.yMMMd().format(selectedDate)}',
-                      style: const TextStyle(
+                      '${current.isIncome ? 'Income' : 'Expense'} · ${displayDate(context, selectedDate, year: true)}',
+                      style: TextStyle(
                         fontSize: 14,
-                        color: muted,
+                        color: palette.muted,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       '${currencyMoney(total, widget.currency)} ${currencyLabel(widget.currency)}',
                       style: TextStyle(
                         fontSize: 18,
-                        color: current.isIncome ? green : rose,
+                        color: current.isIncome ? palette.green : palette.rose,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     for (final entry in selectedEntries)
                       Padding(
-                        padding: const EdgeInsets.only(top: 5),
+                        padding: EdgeInsets.only(top: 5),
                         child: Row(
                           children: [
                             Expanded(
                               child: Text(
                                 entry.title,
-                                style: const TextStyle(fontSize: 14),
+                                style: TextStyle(fontSize: 14),
                               ),
                             ),
                             Text(
                               '${currencyMoney(entry.amount, widget.currency)} ${currencyLabel(widget.currency)}',
-                              style: const TextStyle(fontSize: 14),
+                              style: TextStyle(fontSize: 14),
                             ),
                           ],
                         ),
@@ -2716,20 +2789,28 @@ class FlowPainter extends CustomPainter {
   FlowPainter(
     this.entries,
     this.month, {
+    this.palette = const EmberPalette(false),
+    this.calendar = AppCalendar.gregorian,
     this.selectedDay,
     this.selectedIsIncome,
   });
   final List<Entry> entries;
   final DateTime month;
+  final EmberPalette palette;
+  final AppCalendar calendar;
   final int? selectedDay;
   final bool? selectedIsIncome;
   @override
   void paint(Canvas canvas, Size size) {
-    final days = DateTime(month.year, month.month + 1, 0).day;
+    final days = calendarMonthLength(month, calendar);
     final ins = List.filled(days, 0), outs = List.filled(days, 0);
     for (final e in entries) {
-      if (e.type == 'income') ins[e.date.day - 1] += e.amount;
-      if (e.type == 'expense') outs[e.date.day - 1] += e.amount;
+      if (e.type == 'income') {
+        ins[calendarDayNumber(e.date, calendar) - 1] += e.amount;
+      }
+      if (e.type == 'expense') {
+        outs[calendarDayNumber(e.date, calendar) - 1] += e.amount;
+      }
     }
     final maxValue = math.max(1, [...ins, ...outs].reduce(math.max));
     for (var i = 0; i < 4; i++) {
@@ -2738,7 +2819,7 @@ class FlowPainter extends CustomPainter {
         Offset(0, y),
         Offset(size.width, y),
         Paint()
-          ..color = line
+          ..color = palette.line
           ..strokeWidth = 1,
       );
     }
@@ -2754,11 +2835,11 @@ class FlowPainter extends CustomPainter {
           slot * .32,
           h,
         );
-        final rounded = RRect.fromRectAndRadius(rect, const Radius.circular(3));
+        final rounded = RRect.fromRectAndRadius(rect, Radius.circular(3));
         canvas.drawRRect(
           rounded,
           Paint()
-            ..color = (j == 0 ? green : rose).withValues(
+            ..color = (j == 0 ? palette.green : palette.rose).withValues(
               alpha: j == 0 ? 0.9 : 0.8,
             ),
         );
@@ -2766,7 +2847,7 @@ class FlowPainter extends CustomPainter {
           canvas.drawRRect(
             rounded,
             Paint()
-              ..color = cream
+              ..color = palette.cream
               ..style = PaintingStyle.stroke
               ..strokeWidth = 2,
           );
