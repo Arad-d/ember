@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ember/main.dart';
 import 'package:ember/store.dart';
+import 'package:ember/models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +13,64 @@ void main() {
       ..addFont(rootBundle.load("assets/fonts/Roboto-Regular.ttf"));
     await loader.load();
   });
+  for (final width in [390.0, 1440.0]) {
+    testWidgets('Overview accounts follow currency at $width', (tester) async {
+      tester.view.physicalSize = Size(width, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      SharedPreferences.setMockInitialValues({});
+      final store = LedgerStore(await SharedPreferences.getInstance());
+      store.accounts = [
+        for (var i = 0; i < 3; i++)
+          Account(
+            id: 't$i',
+            name: 'Toman account $i',
+            kind: 'Bank',
+            opening: 100,
+          ),
+        const Account(
+          id: 'u',
+          name: 'Dollar account',
+          kind: 'Bank',
+          opening: 100,
+          currency: 'USD',
+        ),
+      ];
+      await tester.pumpWidget(EmberApp(store: store));
+      await tester.pumpAndSettle();
+      expect(find.text('Toman account 0'), findsOneWidget);
+      expect(find.text('Dollar account'), findsNothing);
+
+      Future<void> selectCurrency(String code) async {
+        await tester.tap(find.byTooltip('Choose currency'));
+        await tester.pumpAndSettle();
+        final option = find.ancestor(
+          of: find.text('${currencies[code]} ($code)'),
+          matching: find.byType(CheckedPopupMenuItem<String>),
+        );
+        await tester.ensureVisible(option);
+        await tester.pumpAndSettle();
+        await tester.tap(option);
+        await tester.pumpAndSettle();
+      }
+
+      await selectCurrency('USD');
+      expect(find.text('Dollar account'), findsOneWidget);
+      expect(find.text('Toman account 0'), findsNothing);
+      await selectCurrency('EUR');
+      expect(find.text('No Euro (€) accounts yet'), findsOneWidget);
+      expect(find.text('Dollar account'), findsNothing);
+      expect(find.text('Toman account 0'), findsNothing);
+      await selectCurrency('IRT');
+      expect(find.text('Toman account 0'), findsOneWidget);
+      expect(find.text('Dollar account'), findsNothing);
+      expect(store.accounts, hasLength(4));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      store.dispose();
+    });
+  }
   for (final size in [
     const Size(1440, 1000),
     const Size(390, 844),
