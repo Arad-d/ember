@@ -799,14 +799,14 @@ class _HomeState extends State<Home>
           ],
         ),
         SizedBox(height: 10),
-        s.accounts.isEmpty
+        currencyAccounts.isEmpty
             ? empty(
-                'Start with an account',
-                'Add your bank or cash account to begin.',
+                'No ${currencies[selectedCurrency]} accounts yet',
+                'Add an account in this currency to see it here.',
                 action: accountForm,
                 button: 'Add account',
               )
-            : responsiveRow(s.accounts.take(3).map(accountTile).toList()),
+            : responsiveRow(currencyAccounts.take(3).map(accountTile).toList()),
         SizedBox(height: 30),
         card(
           Column(
