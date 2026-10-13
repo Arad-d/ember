@@ -49,8 +49,8 @@ void main() {
             'SAVINGS_SCREENSHOT_DIR',
           );
           if (width != 390 || screenshotDirectory.isEmpty) return;
-          await Directory(screenshotDirectory).create(recursive: true);
           await tester.runAsync(() async {
+            await Directory(screenshotDirectory).create(recursive: true);
             final boundary =
                 screenshotKey.currentContext!.findRenderObject()!
                     as RenderRepaintBoundary;
