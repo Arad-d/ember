@@ -85,3 +85,9 @@ Publishing source is **GitHub Actions** in repository Settings → Pages. The `g
 ## Appearance and calendar
 
 In Settings, choose Dark or Light (pistachio and vanilla), and Gregorian or Solar Hijri (Shamsi). Shamsi dates use English month names and digits. Monthly summaries and chart days follow the selected calendar. Preferences are saved on the current device. Stored dates and exported calendar events remain Gregorian for compatibility. Use the currency chooser in the top header to switch account currencies.
+
+### Savings goals
+
+After the account currencies, reminders, and cash-flow plan updates, run the two `savings_goals` and `savings_goal_account_lock` files in `supabase/migrations/`, in filename order. Goals use owner-scoped access and one savings account per goal. The second update uses advisory locks without granting account-edit permissions. `supabase/tests/savings_goals.sql` checks ownership and guarded links using temporary records and rolls back all changes.
+
+Goal progress follows actual account balances through today. Contribution previews do not record transfers. Missing database setup leaves the rest of the ledger available.

@@ -7,6 +7,7 @@ import 'forecast.dart';
 import 'forecast_explanation.dart';
 import 'what_if.dart';
 import 'what_if_page.dart';
+import 'savings_goals_view.dart';
 
 class PlanView extends StatefulWidget {
   const PlanView({
@@ -17,7 +18,9 @@ class PlanView extends StatefulWidget {
     required this.addBill,
     required this.editBill,
     required this.openEntry,
+    this.openAccounts,
   });
+  final VoidCallback? openAccounts;
   final LedgerStore store;
   final String currency;
   final Widget bills;
@@ -475,6 +478,12 @@ class _PlanViewState extends State<PlanView> {
           store: s,
           currency: widget.currency,
           onExplain: () => explain(f.lowestDate),
+        ),
+        SavingsGoalsView(
+          store: s,
+          currency: widget.currency,
+          openAccounts: widget.openAccounts ?? () {},
+          openForecastSettings: () => settings(),
         ),
         SizedBox(height: 16),
         Wrap(

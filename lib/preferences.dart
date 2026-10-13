@@ -194,7 +194,7 @@ Future<DateTime?> pickAppDate({
       initialDate: initialDate,
       firstDate: firstDate,
       lastDate: lastDate,
-      locale: const Locale('en_US'),
+      locale: const Locale('en', 'US'),
     );
   }
   return showDialog<DateTime>(
