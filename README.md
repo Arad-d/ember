@@ -42,6 +42,7 @@ Ember brings everyday tracking and future planning into one place. See where you
 | **Track everyday money** | Record expenses and income, manage accounts, and transfer between accounts in the same currency. Search transactions and explore monthly and category summaries. |
 | **Stay ahead of bills** | Add a due date, edit or postpone a bill, and record payment. Export a calendar event with an optional alert. |
 | **Plan around payday** | Combine balances, expected income, upcoming bills, and a safety buffer to see projected low-balance days. Open a daily breakdown to understand the result. |
+| **Save toward a goal** | Track a savings account against a target and deadline, then preview how a contribution affects upcoming bills and available spending. |
 | **Try “What if?”** | Compare a purchase, delayed income, or a changed bill with your current plan. Simulations leave your actual records untouched. |
 | **Use familiar amounts** | IRT (Iranian toman), USD, EUR, and GBP. English digit entry, exact integer calculations, and automatic thousands grouping for toman. |
 | **Make it yours** | Choose the wine-and-coal dark theme or pistachio-and-vanilla light theme in Settings. Select Gregorian or English Shamsi dates, and switch currencies from the top header. Preferences stay on your device. |

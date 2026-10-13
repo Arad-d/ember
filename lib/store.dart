@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import 'browser_url.dart';
 import 'models.dart';
 import 'forecast.dart';
+import 'savings_goal.dart';
 
 class LedgerStore extends ChangeNotifier {
   LedgerStore(this.prefs, {http.Client? client})
@@ -18,6 +19,8 @@ class LedgerStore extends ChangeNotifier {
   List<ExpenseReminder> reminders = [];
   List<ExpenseReminder> expectedIncome = [];
   Map<String, PlanSettings> planSettings = {};
+  List<SavingsGoal> savingsGoals = [];
+  bool savingsGoalsAvailable = true;
   bool remindersAvailable = true;
   String url = '', key = '', email = '', userId = '', access = '', refresh = '';
   DateTime expires = DateTime(2000);
@@ -54,6 +57,8 @@ class LedgerStore extends ChangeNotifier {
 
   void loadDemo() {
     expectedIncome = [];
+    savingsGoals = [];
+    savingsGoalsAvailable = true;
     planSettings = {};
     remindersAvailable = true;
     final saved = prefs.getString('demo');
@@ -223,6 +228,7 @@ class LedgerStore extends ChangeNotifier {
       'entries': entries.map((e) => e.toJson()).toList(),
       'reminders': reminders.map((r) => r.toJson()).toList(),
       'expected_income': expectedIncome.map((r) => r.toJson()).toList(),
+      'savings_goals': savingsGoals.map((g) => g.toJson()).toList(),
       'plan_settings': planSettings.entries
           .map((e) => {'currency': e.key, ...e.value.toJson()})
           .toList(),
@@ -384,6 +390,8 @@ class LedgerStore extends ChangeNotifier {
     entries = [];
     reminders = [];
     expectedIncome = [];
+    savingsGoals = [];
+    savingsGoalsAvailable = true;
     planSettings = {};
     await reload();
     notifyListeners();
@@ -537,6 +545,11 @@ class LedgerStore extends ChangeNotifier {
     }
   });
   Future<void> removeAccount(String id) => _mutate(() async {
+    if (savingsGoals.any((g) => g.accountId == id)) {
+      throw Exception(
+        'This account has a savings goal. Remove or relink the goal first.',
+      );
+    }
     if (expectedIncome.any((r) => r.accountId == id)) {
       throw Exception('This account has planned income. Remove it first.');
     }
@@ -560,6 +573,10 @@ class LedgerStore extends ChangeNotifier {
   }
 
   void _loadPlan(dynamic j) {
+    savingsGoalsAvailable = !connected || j.containsKey('savings_goals');
+    savingsGoals = (j['savings_goals'] as List? ?? [])
+        .map((g) => SavingsGoal.fromJson(g))
+        .toList();
     expectedIncome = (j['expected_income'] as List? ?? [])
         .map((r) => ExpenseReminder.fromJson(r))
         .toList();
@@ -568,6 +585,62 @@ class LedgerStore extends ChangeNotifier {
         r['currency'] as String: PlanSettings.fromJson(r),
     };
   }
+
+  Future<void> saveSavingsGoal(SavingsGoal goal) => _mutate(() async {
+    final existing = savingsGoals.where((g) => g.id == goal.id).firstOrNull;
+    final account = accounts.where((a) => a.id == goal.accountId).firstOrNull;
+    if (goal.name.trim().isEmpty ||
+        goal.name.trim().length > 120 ||
+        goal.target <= 0 ||
+        goal.target > 9000000000000 ||
+        account == null ||
+        account.kind != 'Savings' ||
+        account.currency != goal.currency) {
+      throw Exception(
+        'Enter a name, positive target and savings account in this currency.',
+      );
+    }
+    if (calendarDay(goal.deadline).isBefore(calendarDay(DateTime.now())) &&
+        (existing == null ||
+            calendarDay(existing.deadline) != calendarDay(goal.deadline))) {
+      throw Exception('Choose today or a future deadline.');
+    }
+    if (savingsGoals.any(
+      (g) => g.id != goal.id && g.accountId == goal.accountId,
+    )) {
+      throw Exception(
+        'This savings account already has a goal. Choose another account.',
+      );
+    }
+    if (connected) {
+      if (!savingsGoalsAvailable) {
+        throw Exception('Savings goals need a database update.');
+      }
+      await _request('POST', 'rpc/save_savings_goal', {
+        'payload': goal.toJson(),
+      });
+    } else {
+      savingsGoals = [
+        ...savingsGoals.where((g) => g.id != goal.id),
+        SavingsGoal(
+          id: goal.id,
+          name: goal.name.trim(),
+          target: goal.target,
+          currency: goal.currency,
+          deadline: goal.deadline,
+          accountId: goal.accountId,
+        ),
+      ];
+    }
+  });
+
+  Future<void> removeSavingsGoal(String id) => _mutate(() async {
+    if (connected) {
+      await _request('DELETE', 'savings_goals?id=eq.$id&user_id=eq.$userId');
+    } else {
+      savingsGoals = savingsGoals.where((g) => g.id != id).toList();
+    }
+  });
 
   Future<void> savePlanSettings(String currency, PlanSettings value) =>
       _mutate(() async {

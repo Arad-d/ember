@@ -206,6 +206,7 @@ class _HomeState extends State<Home>
                                   addBill: () => reminderForm(),
                                   editBill: (bill) => reminderForm(bill),
                                   openEntry: entryDetail,
+                                  openAccounts: () => setState(() => page = 2),
                                 )
                               else
                                 settings(),
