@@ -1,3 +1,5 @@
+import 'transaction_export.dart';
+import 'transaction_export_view.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -1412,6 +1414,37 @@ class _HomeState extends State<Home>
             Text(
               'Dates and monthly summaries follow your calendar. Shamsi dates use English month names and digits. Preferences are saved on this device.',
               style: TextStyle(color: palette.muted, fontSize: 13, height: 1.5),
+            ),
+          ],
+        ),
+      ),
+      SizedBox(height: 20),
+      card(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Your data', style: TextStyle(fontSize: 19)),
+            SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.file_download_outlined, color: palette.rose),
+              title: Text('Export transactions'),
+              subtitle: Text(
+                'Download CSV or a PDF report.',
+                style: TextStyle(color: palette.muted, fontSize: 13),
+              ),
+              trailing: Icon(Icons.chevron_right),
+              onTap: () => showTransactionExport(
+                context,
+                snapshot: ExportSnapshot(
+                  accounts: s.accounts,
+                  entries: s.entries,
+                  now: DateTime.now(),
+                  connected: s.connected,
+                  lastSync: s.lastSync,
+                ),
+                calendar: calendarOf(context),
+              ),
             ),
           ],
         ),
