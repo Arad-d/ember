@@ -238,7 +238,7 @@ class LedgerStore extends ChangeNotifier {
     access = j['access_token'];
     refresh = j['refresh_token'];
     userId = j['user']['id'];
-    email = j['user']['email'] ?? '';
+    email = j['user']['email'] ?? ''; needsPasswordReset = j['needs_password_reset'] == true;
     expires = DateTime.fromMillisecondsSinceEpoch(
       (j['expires_at'] as num).toInt() * 1000,
     );
@@ -269,7 +269,7 @@ class LedgerStore extends ChangeNotifier {
       'expires_at':
           DateTime.now().millisecondsSinceEpoch ~/ 1000 +
           (int.tryParse(values['expires_in'] ?? '') ?? 3600),
-      'user': user,
+      'needs_password_reset': true, 'user': user,
     };
     _session(session);
     needsPasswordReset = true;
