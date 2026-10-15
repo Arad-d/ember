@@ -236,6 +236,28 @@ void main() {
       );
       expect(store.needsPasswordReset, isTrue);
       expect(store.connected, isFalse);
+      final restored = LedgerStore(
+        await SharedPreferences.getInstance(),
+        client: MockClient((request) async {
+          requests.add(request);
+          if (request.method == 'PUT' &&
+              request.url.path.endsWith('/auth/v1/user')) {
+            return http.Response('{}', 200);
+          }
+          if (request.url.path.endsWith('read_ledger')) {
+            return http.Response('{"accounts":[],"entries":[]}', 200);
+          }
+          return http.Response('{}', 404);
+        }),
+      );
+      await restored.initialize();
+      expect(restored.needsPasswordReset, isTrue);
+      expect(restored.connected, isFalse);
+      expect(
+        requests.where((request) => request.url.path.endsWith('read_ledger')),
+        isEmpty,
+      );
+      restored.dispose();
       await store.updatePassword('a-safe-new-password');
       expect(store.needsPasswordReset, isFalse);
       expect(store.connected, isTrue);
